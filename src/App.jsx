@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  AlertCircle,
   ArrowLeft,
   BookOpen,
   Box,
@@ -7,80 +8,38 @@ import {
   Check,
   Edit3,
   FileAudio,
+  Image,
   Library,
+  Loader2,
   Plus,
   QrCode,
   Save,
   Search,
   Trash2,
 } from 'lucide-react';
-
-const initialBooks = [
-  {
-    id: 1,
-    title: 'Cuerpo humano en AR',
-    description: 'Material interactivo para revisar organos, sistemas y modelos 3D.',
-    coverColor: 'from-teal-600 to-cyan-500',
-    isPublished: true,
-    updatedAt: '2026-07-07',
-    chapters: [
-      {
-        id: 101,
-        title: 'Sistema respiratorio',
-        order: 1,
-        text: 'Explora pulmones, traquea y bronquios con una escena aumentada.',
-        prefabKey: 'lungs_model',
-        audioName: 'respiratorio.mp3',
-        modelName: 'lungs.glb',
-        qrCode: 'cuerpo-humano-scene-a91f23b',
-      },
-      {
-        id: 102,
-        title: 'Sistema circulatorio',
-        order: 2,
-        text: 'Reconoce el corazon y el recorrido principal de la sangre.',
-        prefabKey: 'heart_model',
-        audioName: '',
-        modelName: 'heart.glb',
-        qrCode: 'cuerpo-humano-scene-c82d10a',
-      },
-    ],
-  },
-  {
-    id: 2,
-    title: 'Historia del Peru',
-    description: 'Capitulos con piezas historicas, mapas y actividades de reconocimiento.',
-    coverColor: 'from-amber-500 to-rose-500',
-    isPublished: false,
-    updatedAt: '2026-07-05',
-    chapters: [
-      {
-        id: 201,
-        title: 'Culturas preincas',
-        order: 1,
-        text: 'Observa ceramicas y ubicaciones principales en una experiencia AR.',
-        prefabKey: 'preinca_artifacts',
-        audioName: 'preincas.mp3',
-        modelName: 'huaco.glb',
-        qrCode: 'historia-peru-scene-f18c334',
-      },
-    ],
-  },
-];
+import {
+  createBook,
+  createScene,
+  deleteScene,
+  listBooks,
+  listScenes,
+  updateScene,
+} from './api';
 
 const emptyBookForm = {
   title: '',
   description: '',
-  isPublished: false,
+  is_published: false,
+  cover: null,
 };
 
 const emptyChapterForm = {
   title: '',
   order: 1,
   text: '',
-  prefabKey: '',
-  audioName: '',
-  modelName: '',
+  prefab_key: '',
+  audio: null,
+  glb_model: null,
 };
 
 const coverColors = [
@@ -91,27 +50,26 @@ const coverColors = [
   'from-violet-600 to-fuchsia-500',
 ];
 
-function buildQrCode(bookTitle, order) {
-  const slug = bookTitle
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 32);
-
-  return `${slug || 'libro'}-scene-${order}-${Math.random().toString(16).slice(2, 8)}`;
-}
-
 export default function App() {
-  const [books, setBooks] = useState(initialBooks);
-  const [selectedBookId, setSelectedBookId] = useState(initialBooks[0].id);
+  const [books, setBooks] = useState([]);
+  const [scenes, setScenes] = useState([]);
+  const [selectedBookId, setSelectedBookId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [bookForm, setBookForm] = useState(emptyBookForm);
   const [chapterForm, setChapterForm] = useState(emptyChapterForm);
   const [editingChapterId, setEditingChapterId] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSavingBook, setIsSavingBook] = useState(false);
+  const [isSavingChapter, setIsSavingChapter] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const selectedBook = books.find((book) => book.id === selectedBookId) ?? books[0];
+  const selectedBook = books.find((book) => book.id === selectedBookId) ?? books[0] ?? null;
+  const selectedScenes = useMemo(() => {
+    if (!selectedBook) return [];
+    return scenes
+      .filter((scene) => scene.book === selectedBook.id)
+      .sort((a, b) => a.order - b.order || a.id - b.id);
+  }, [scenes, selectedBook]);
 
   const filteredBooks = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -121,8 +79,37 @@ export default function App() {
     });
   }, [books, searchTerm]);
 
-  const totalChapters = books.reduce((total, book) => total + book.chapters.length, 0);
-  const publishedBooks = books.filter((book) => book.isPublished).length;
+  const totalChapters = scenes.length;
+  const publishedBooks = books.filter((book) => book.is_published).length;
+
+  const loadTeacherContent = useCallback(async (nextSelectedBookId = null) => {
+    setIsLoading(true);
+    setErrorMessage('');
+
+    try {
+      const [booksResponse, scenesResponse] = await Promise.all([listBooks(), listScenes()]);
+      setBooks(booksResponse);
+      setScenes(scenesResponse);
+
+      const nextBook =
+        booksResponse.find((book) => book.id === nextSelectedBookId) ?? booksResponse[0] ?? null;
+      setSelectedBookId(nextBook?.id ?? null);
+      setChapterForm((current) => ({
+        ...current,
+        order: scenesResponse.filter((scene) => scene.book === nextBook?.id).length + 1,
+      }));
+    } catch (error) {
+      setErrorMessage(
+        `${error.message}. Verifica que el backend este corriendo y que hayas iniciado sesion como admin.`,
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadTeacherContent();
+  }, [loadTeacherContent]);
 
   function handleBookFieldChange(field, value) {
     setBookForm((current) => ({ ...current, [field]: value }));
@@ -132,24 +119,37 @@ export default function App() {
     setChapterForm((current) => ({ ...current, [field]: value }));
   }
 
-  function handleAddBook(event) {
+  async function handleAddBook(event) {
     event.preventDefault();
     const title = bookForm.title.trim();
     if (!title) return;
 
-    const nextBook = {
-      id: Date.now(),
-      title,
-      description: bookForm.description.trim(),
-      isPublished: bookForm.isPublished,
-      coverColor: coverColors[books.length % coverColors.length],
-      updatedAt: new Date().toISOString().slice(0, 10),
-      chapters: [],
-    };
+    setIsSavingBook(true);
+    setErrorMessage('');
 
-    setBooks((current) => [nextBook, ...current]);
-    setSelectedBookId(nextBook.id);
-    setBookForm(emptyBookForm);
+    try {
+      const createdBook = await createBook({
+        title,
+        description: bookForm.description.trim(),
+        is_published: bookForm.is_published,
+        cover: bookForm.cover,
+      });
+      setBooks((current) => [createdBook, ...current]);
+      setSelectedBookId(createdBook.id);
+      setBookForm(emptyBookForm);
+      setChapterForm({ ...emptyChapterForm, order: 1 });
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setIsSavingBook(false);
+    }
+  }
+
+  function handleSelectBook(book) {
+    const count = scenes.filter((scene) => scene.book === book.id).length;
+    setSelectedBookId(book.id);
+    setEditingChapterId(null);
+    setChapterForm({ ...emptyChapterForm, order: count + 1 });
   }
 
   function handleEditChapter(chapter) {
@@ -158,92 +158,92 @@ export default function App() {
       title: chapter.title,
       order: chapter.order,
       text: chapter.text,
-      prefabKey: chapter.prefabKey,
-      audioName: chapter.audioName,
-      modelName: chapter.modelName,
+      prefab_key: chapter.prefab_key,
+      audio: null,
+      glb_model: null,
     });
   }
 
-  function handleSaveChapter(event) {
+  async function handleSaveChapter(event) {
     event.preventDefault();
     if (!selectedBook) return;
 
     const cleanTitle = chapterForm.title.trim();
-    const cleanOrder = Number(chapterForm.order) || selectedBook.chapters.length + 1;
+    const cleanOrder = Number(chapterForm.order) || selectedScenes.length + 1;
     if (!cleanTitle) return;
 
-    setBooks((current) =>
-      current.map((book) => {
-        if (book.id !== selectedBook.id) return book;
+    setIsSavingChapter(true);
+    setErrorMessage('');
 
-        if (editingChapterId) {
-          return {
-            ...book,
-            updatedAt: new Date().toISOString().slice(0, 10),
-            chapters: book.chapters
-              .map((chapter) =>
-                chapter.id === editingChapterId
-                  ? {
-                      ...chapter,
-                      title: cleanTitle,
-                      order: cleanOrder,
-                      text: chapterForm.text.trim(),
-                      prefabKey: chapterForm.prefabKey.trim(),
-                      audioName: chapterForm.audioName.trim(),
-                      modelName: chapterForm.modelName.trim(),
-                    }
-                  : chapter,
-              )
-              .sort((a, b) => a.order - b.order),
-          };
-        }
+    const payload = {
+      book: selectedBook.id,
+      title: cleanTitle,
+      order: cleanOrder,
+      text: chapterForm.text.trim(),
+      prefab_key: chapterForm.prefab_key.trim(),
+      audio: chapterForm.audio,
+      glb_model: chapterForm.glb_model,
+    };
 
-        const nextChapter = {
-          id: Date.now(),
-          title: cleanTitle,
-          order: cleanOrder,
-          text: chapterForm.text.trim(),
-          prefabKey: chapterForm.prefabKey.trim(),
-          audioName: chapterForm.audioName.trim(),
-          modelName: chapterForm.modelName.trim(),
-          qrCode: buildQrCode(book.title, cleanOrder),
-        };
+    try {
+      if (editingChapterId) {
+        const updated = await updateScene(editingChapterId, payload);
+        setScenes((current) =>
+          current.map((scene) => (scene.id === updated.id ? updated : scene)),
+        );
+      } else {
+        const created = await createScene(payload);
+        setScenes((current) => [...current, created]);
+        setBooks((current) =>
+          current.map((book) =>
+            book.id === selectedBook.id
+              ? { ...book, scenes_count: (book.scenes_count ?? selectedScenes.length) + 1 }
+              : book,
+          ),
+        );
+      }
 
-        return {
-          ...book,
-          updatedAt: new Date().toISOString().slice(0, 10),
-          chapters: [...book.chapters, nextChapter].sort((a, b) => a.order - b.order),
-        };
-      }),
-    );
-
-    setEditingChapterId(null);
-    setChapterForm({ ...emptyChapterForm, order: selectedBook.chapters.length + 1 });
+      setEditingChapterId(null);
+      setChapterForm({
+        ...emptyChapterForm,
+        order: editingChapterId ? selectedScenes.length + 1 : selectedScenes.length + 2,
+      });
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setIsSavingChapter(false);
+    }
   }
 
-  function handleDeleteChapter(chapterId) {
-    if (!selectedBook) return;
-    setBooks((current) =>
-      current.map((book) =>
-        book.id === selectedBook.id
-          ? {
-              ...book,
-              updatedAt: new Date().toISOString().slice(0, 10),
-              chapters: book.chapters.filter((chapter) => chapter.id !== chapterId),
-            }
-          : book,
-      ),
-    );
+  async function handleDeleteChapter(chapterId) {
+    setErrorMessage('');
 
-    if (editingChapterId === chapterId) {
-      setEditingChapterId(null);
-      setChapterForm(emptyChapterForm);
+    try {
+      await deleteScene(chapterId);
+      const deletedScene = scenes.find((scene) => scene.id === chapterId);
+      setScenes((current) => current.filter((scene) => scene.id !== chapterId));
+      if (deletedScene) {
+        setBooks((current) =>
+          current.map((book) =>
+            book.id === deletedScene.book
+              ? { ...book, scenes_count: Math.max((book.scenes_count ?? selectedScenes.length) - 1, 0) }
+              : book,
+          ),
+        );
+      }
+
+      if (editingChapterId === chapterId) {
+        setEditingChapterId(null);
+        setChapterForm({ ...emptyChapterForm, order: selectedScenes.length });
+      }
+    } catch (error) {
+      setErrorMessage(error.message);
     }
   }
 
   function handleCancelChapterEdit() {
     setEditingChapterId(null);
-    setChapterForm({ ...emptyChapterForm, order: selectedBook.chapters.length + 1 });
+    setChapterForm({ ...emptyChapterForm, order: selectedScenes.length + 1 });
   }
 
   return (
@@ -276,36 +276,44 @@ export default function App() {
           </label>
 
           <div className="mt-4 space-y-2">
-            {filteredBooks.map((book) => (
-              <button
-                className={`w-full rounded-lg border px-3 py-3 text-left transition ${
-                  book.id === selectedBook?.id
-                    ? 'border-teal-600 bg-teal-50 shadow-sm'
-                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-                }`}
-                key={book.id}
-                onClick={() => {
-                  setSelectedBookId(book.id);
-                  setEditingChapterId(null);
-                  setChapterForm({ ...emptyChapterForm, order: book.chapters.length + 1 });
-                }}
-                type="button"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold">{book.title}</p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {book.chapters.length} capitulos
-                    </p>
+            {isLoading ? (
+              <LoadingBlock text="Cargando libros" />
+            ) : (
+              filteredBooks.map((book) => (
+                <button
+                  className={`w-full rounded-lg border px-3 py-3 text-left transition ${
+                    book.id === selectedBook?.id
+                      ? 'border-teal-600 bg-teal-50 shadow-sm'
+                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                  key={book.id}
+                  onClick={() => handleSelectBook(book)}
+                  type="button"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">{book.title}</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {book.scenes_count ?? scenes.filter((scene) => scene.book === book.id).length}{' '}
+                        capitulos
+                      </p>
+                    </div>
+                    <StatusBadge published={book.is_published} />
                   </div>
-                  <StatusBadge published={book.isPublished} />
-                </div>
-              </button>
-            ))}
+                </button>
+              ))
+            )}
           </div>
         </aside>
 
         <section className="px-4 py-5 sm:px-6 lg:px-8">
+          {errorMessage && (
+            <div className="mb-4 flex items-start gap-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+              <AlertCircle className="mt-0.5 shrink-0" size={18} />
+              <p>{errorMessage}</p>
+            </div>
+          )}
+
           <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 xl:flex-row xl:items-center xl:justify-between">
             <div>
               <button
@@ -317,7 +325,7 @@ export default function App() {
               </button>
               <p className="text-sm font-semibold text-teal-700">Gestion de contenido</p>
               <h2 className="mt-1 text-2xl font-bold sm:text-3xl">
-                {selectedBook?.title ?? 'Selecciona un libro'}
+                {selectedBook?.title ?? 'Sin libros todavia'}
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
                 {selectedBook?.description ||
@@ -326,9 +334,9 @@ export default function App() {
             </div>
 
             <div className="grid grid-cols-3 gap-2 sm:min-w-[390px]">
-              <Metric label="Capitulos" value={selectedBook?.chapters.length ?? 0} />
+              <Metric label="Capitulos" value={selectedScenes.length} />
               <Metric label="Total" value={totalChapters} />
-              <Metric label="Estado" value={selectedBook?.isPublished ? 'Activo' : 'Borrador'} />
+              <Metric label="Estado" value={selectedBook?.is_published ? 'Activo' : 'Borrador'} />
             </div>
           </header>
 
@@ -342,6 +350,7 @@ export default function App() {
                   </div>
                   <button
                     className="inline-flex items-center gap-2 rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-800"
+                    disabled={!selectedBook}
                     onClick={handleCancelChapterEdit}
                     type="button"
                   >
@@ -351,8 +360,10 @@ export default function App() {
                 </div>
 
                 <div className="divide-y divide-slate-200">
-                  {selectedBook?.chapters.length ? (
-                    selectedBook.chapters.map((chapter) => (
+                  {isLoading ? (
+                    <LoadingBlock text="Cargando capitulos" />
+                  ) : selectedScenes.length ? (
+                    selectedScenes.map((chapter) => (
                       <article className="px-4 py-4" key={chapter.id}>
                         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                           <div className="min-w-0">
@@ -366,9 +377,12 @@ export default function App() {
                               {chapter.text}
                             </p>
                             <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
-                              <ResourcePill icon={Box} text={chapter.prefabKey || 'Sin prefab'} />
-                              <ResourcePill icon={FileAudio} text={chapter.audioName || 'Sin audio'} />
-                              <ResourcePill icon={QrCode} text={chapter.qrCode} />
+                              <ResourcePill icon={Box} text={chapter.prefab_key || 'Sin prefab'} />
+                              <ResourcePill
+                                icon={FileAudio}
+                                text={chapter.audio_url ? fileName(chapter.audio_url) : 'Sin audio'}
+                              />
+                              <ResourcePill icon={QrCode} text={chapter.qr_code} />
                             </div>
                           </div>
 
@@ -417,32 +431,57 @@ export default function App() {
                   <div className="flex items-end gap-3">
                     <label className="flex h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm">
                       <input
-                        checked={bookForm.isPublished}
-                        onChange={(event) => handleBookFieldChange('isPublished', event.target.checked)}
+                        checked={bookForm.is_published}
+                        onChange={(event) => handleBookFieldChange('is_published', event.target.checked)}
                         type="checkbox"
                       />
                       Publicado
                     </label>
-                    <button className="btn-primary h-10" type="submit">
-                      <Plus size={17} />
+                    <button className="btn-primary h-10" disabled={isSavingBook} type="submit">
+                      {isSavingBook ? <Loader2 className="animate-spin" size={17} /> : <Plus size={17} />}
                       Aniadir
                     </button>
                   </div>
+                  <Field label="Portada">
+                    <input
+                      accept="image/*"
+                      className="input md:col-span-3"
+                      onChange={(event) => handleBookFieldChange('cover', event.target.files?.[0] ?? null)}
+                      type="file"
+                    />
+                  </Field>
                 </form>
               </section>
             </div>
 
             <aside className="space-y-5">
               {selectedBook && (
-                <div className={`rounded-lg bg-gradient-to-br ${selectedBook.coverColor} p-5 text-white shadow-sm`}>
-                  <div className="flex items-start justify-between">
-                    <BookOpen size={30} />
-                    <StatusBadge published={selectedBook.isPublished} light />
-                  </div>
-                  <h3 className="mt-8 text-xl font-bold">{selectedBook.title}</h3>
-                  <div className="mt-4 flex items-center gap-2 text-sm text-white/85">
-                    <CalendarDays size={16} />
-                    Actualizado {selectedBook.updatedAt}
+                <div
+                  className={`overflow-hidden rounded-lg bg-gradient-to-br ${
+                    coverColors[selectedBook.id % coverColors.length]
+                  } text-white shadow-sm`}
+                >
+                  {selectedBook.cover_url ? (
+                    <img
+                      alt=""
+                      className="h-36 w-full object-cover"
+                      src={selectedBook.cover_url}
+                    />
+                  ) : (
+                    <div className="flex h-28 items-center justify-center bg-white/10">
+                      <Image size={34} />
+                    </div>
+                  )}
+                  <div className="p-5">
+                    <div className="flex items-start justify-between">
+                      <BookOpen size={30} />
+                      <StatusBadge published={selectedBook.is_published} light />
+                    </div>
+                    <h3 className="mt-8 text-xl font-bold">{selectedBook.title}</h3>
+                    <div className="mt-4 flex items-center gap-2 text-sm text-white/85">
+                      <CalendarDays size={16} />
+                      Actualizado {formatDate(selectedBook.updated_at)}
+                    </div>
                   </div>
                 </div>
               )}
@@ -453,7 +492,7 @@ export default function App() {
                     <h3 className="font-semibold">
                       {editingChapterId ? 'Editar capitulo' : 'Nuevo capitulo'}
                     </h3>
-                    <p className="text-sm text-slate-500">Datos compatibles con Scene del backend.</p>
+                    <p className="text-sm text-slate-500">Datos conectados con Scene del backend.</p>
                   </div>
                   {editingChapterId && (
                     <button className="text-sm font-semibold text-slate-500" onClick={handleCancelChapterEdit} type="button">
@@ -466,6 +505,7 @@ export default function App() {
                   <Field label="Titulo">
                     <input
                       className="input"
+                      disabled={!selectedBook}
                       placeholder="Ej. Sistema digestivo"
                       value={chapterForm.title}
                       onChange={(event) => handleChapterFieldChange('title', event.target.value)}
@@ -474,6 +514,7 @@ export default function App() {
                   <Field label="Orden">
                     <input
                       className="input"
+                      disabled={!selectedBook}
                       min="1"
                       type="number"
                       value={chapterForm.order}
@@ -483,6 +524,7 @@ export default function App() {
                   <Field label="Texto">
                     <textarea
                       className="input min-h-28 resize-y"
+                      disabled={!selectedBook}
                       placeholder="Contenido que vera o escuchara el estudiante"
                       value={chapterForm.text}
                       onChange={(event) => handleChapterFieldChange('text', event.target.value)}
@@ -491,29 +533,38 @@ export default function App() {
                   <Field label="Prefab key">
                     <input
                       className="input"
+                      disabled={!selectedBook}
                       placeholder="Ej. heart_model"
-                      value={chapterForm.prefabKey}
-                      onChange={(event) => handleChapterFieldChange('prefabKey', event.target.value)}
+                      value={chapterForm.prefab_key}
+                      onChange={(event) => handleChapterFieldChange('prefab_key', event.target.value)}
                     />
                   </Field>
                   <Field label="Audio">
                     <input
+                      accept="audio/*"
                       className="input"
-                      placeholder="archivo.mp3"
-                      value={chapterForm.audioName}
-                      onChange={(event) => handleChapterFieldChange('audioName', event.target.value)}
+                      disabled={!selectedBook}
+                      onChange={(event) => handleChapterFieldChange('audio', event.target.files?.[0] ?? null)}
+                      type="file"
                     />
                   </Field>
                   <Field label="Modelo GLB">
                     <input
+                      accept=".glb,model/gltf-binary"
                       className="input"
-                      placeholder="modelo.glb"
-                      value={chapterForm.modelName}
-                      onChange={(event) => handleChapterFieldChange('modelName', event.target.value)}
+                      disabled={!selectedBook}
+                      onChange={(event) => handleChapterFieldChange('glb_model', event.target.files?.[0] ?? null)}
+                      type="file"
                     />
                   </Field>
-                  <button className="btn-primary w-full justify-center" type="submit">
-                    {editingChapterId ? <Save size={17} /> : <Plus size={17} />}
+                  <button className="btn-primary w-full justify-center" disabled={!selectedBook || isSavingChapter} type="submit">
+                    {isSavingChapter ? (
+                      <Loader2 className="animate-spin" size={17} />
+                    ) : editingChapterId ? (
+                      <Save size={17} />
+                    ) : (
+                      <Plus size={17} />
+                    )}
                     {editingChapterId ? 'Guardar cambios' : 'Crear capitulo'}
                   </button>
                 </form>
@@ -582,4 +633,26 @@ function Field({ children, label }) {
       <div className="mt-1">{children}</div>
     </label>
   );
+}
+
+function LoadingBlock({ text }) {
+  return (
+    <div className="flex items-center gap-2 px-4 py-5 text-sm text-slate-500">
+      <Loader2 className="animate-spin" size={17} />
+      {text}
+    </div>
+  );
+}
+
+function fileName(url) {
+  return decodeURIComponent(url.split('/').pop() ?? url);
+}
+
+function formatDate(value) {
+  if (!value) return 'sin fecha';
+  return new Intl.DateTimeFormat('es-PE', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(value));
 }
