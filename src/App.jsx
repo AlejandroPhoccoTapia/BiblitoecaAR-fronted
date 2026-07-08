@@ -22,6 +22,7 @@ import {
 import {
   createBook,
   createScene,
+  deleteBook,
   deleteScene,
   listBooks,
   listScenes,
@@ -238,6 +239,32 @@ export default function App() {
         setEditingChapterId(null);
         setChapterForm({ ...emptyChapterForm, order: selectedScenes.length });
       }
+    } catch (error) {
+      setErrorMessage(error.message);
+    }
+  }
+
+  async function handleDeleteBook() {
+    if (!selectedBook) return;
+
+    const confirmed = window.confirm(
+      `Eliminar "${selectedBook.title}" tambien eliminara sus capitulos. Esta accion no se puede deshacer.`,
+    );
+    if (!confirmed) return;
+
+    setErrorMessage('');
+
+    try {
+      await deleteBook(selectedBook.id);
+      const remainingBooks = books.filter((book) => book.id !== selectedBook.id);
+      setBooks(remainingBooks);
+      setScenes((current) => current.filter((scene) => scene.book !== selectedBook.id));
+      setSelectedBookId(remainingBooks[0]?.id ?? null);
+      setEditingChapterId(null);
+      setChapterForm({
+        ...emptyChapterForm,
+        order: scenes.filter((scene) => scene.book === remainingBooks[0]?.id).length + 1,
+      });
     } catch (error) {
       setErrorMessage(error.message);
     }
@@ -485,6 +512,14 @@ export default function App() {
                       <CalendarDays size={16} />
                       Actualizado {formatDate(selectedBook.updated_at)}
                     </div>
+                    <button
+                      className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white/15 px-3 py-2 text-sm font-semibold text-white ring-1 ring-white/25 transition hover:bg-white/25"
+                      onClick={handleDeleteBook}
+                      type="button"
+                    >
+                      <Trash2 size={17} />
+                      Eliminar libro
+                    </button>
                   </div>
                 </div>
               )}

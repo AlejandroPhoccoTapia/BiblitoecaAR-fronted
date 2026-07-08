@@ -60,6 +60,12 @@ export function createBook(data) {
   });
 }
 
+export function deleteBook(id) {
+  return request(`/teacher/books/${id}/`, {
+    method: 'DELETE',
+  });
+}
+
 export function listScenes() {
   return request('/teacher/scenes/');
 }
