@@ -60,6 +60,13 @@ export function createBook(data) {
   });
 }
 
+export function updateBook(id, data) {
+  return request(`/teacher/books/${id}/`, {
+    method: 'PATCH',
+    body: asFormData(data),
+  });
+}
+
 export function deleteBook(id) {
   return request(`/teacher/books/${id}/`, {
     method: 'DELETE',
