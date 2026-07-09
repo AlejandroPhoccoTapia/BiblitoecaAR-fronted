@@ -1,13 +1,14 @@
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '/api').replace(/\/$/, '');
+let csrfToken = null;
 
 async function request(path, options = {}) {
   const isFormData = options.body instanceof FormData;
   const method = options.method ?? 'GET';
   const headers = isFormData ? {} : { 'Content-Type': 'application/json' };
-  const csrfToken = getCookie('csrftoken');
+  const requestCsrfToken = csrfToken ?? getCookie('csrftoken');
 
-  if (csrfToken && method !== 'GET') {
-    headers['X-CSRFToken'] = csrfToken;
+  if (requestCsrfToken && method !== 'GET') {
+    headers['X-CSRFToken'] = requestCsrfToken;
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -28,7 +29,16 @@ async function request(path, options = {}) {
   }
 
   if (response.status === 204) return null;
-  return response.json();
+
+  const body = await response.json();
+  rememberCsrfToken(body);
+  return body;
+}
+
+function rememberCsrfToken(body) {
+  if (body?.csrf_token) {
+    csrfToken = body.csrf_token;
+  }
 }
 
 function getCookie(name) {
