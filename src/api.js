@@ -53,6 +53,23 @@ export function listBooks() {
   return request('/teacher/books/');
 }
 
+export function getTeacherSession() {
+  return request('/auth/me/');
+}
+
+export function loginTeacher(credentials) {
+  return request('/auth/login/', {
+    method: 'POST',
+    body: JSON.stringify(credentials),
+  });
+}
+
+export function logoutTeacher() {
+  return request('/auth/logout/', {
+    method: 'POST',
+  });
+}
+
 export function createBook(data) {
   return request('/teacher/books/', {
     method: 'POST',
@@ -93,6 +110,30 @@ export function updateScene(id, data) {
 
 export function deleteScene(id) {
   return request(`/teacher/scenes/${id}/`, {
+    method: 'DELETE',
+  });
+}
+
+export function listStudents() {
+  return request('/teacher/students/');
+}
+
+export function createStudent(data) {
+  return request('/teacher/students/', {
+    method: 'POST',
+    body: asFormData(data),
+  });
+}
+
+export function updateStudent(id, data) {
+  return request(`/teacher/students/${id}/`, {
+    method: 'PATCH',
+    body: asFormData(data),
+  });
+}
+
+export function deleteStudent(id) {
+  return request(`/teacher/students/${id}/`, {
     method: 'DELETE',
   });
 }

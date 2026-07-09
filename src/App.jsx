@@ -9,24 +9,36 @@ import {
   Download,
   Edit3,
   ExternalLink,
+  Eye,
   FileAudio,
   Library,
   Loader2,
+  LogOut,
   Plus,
   QrCode,
   Save,
   Search,
+  ShieldCheck,
   Trash2,
+  UserRound,
+  Users,
 } from 'lucide-react';
 import {
   createBook,
   createScene,
+  createStudent,
   deleteBook,
   deleteScene,
+  deleteStudent,
+  getTeacherSession,
   listBooks,
   listScenes,
+  listStudents,
+  loginTeacher,
+  logoutTeacher,
   updateBook,
   updateScene,
+  updateStudent,
 } from './api';
 
 const emptyBookForm = {
@@ -45,6 +57,14 @@ const emptyChapterForm = {
   glb_model: null,
 };
 
+const emptyStudentForm = {
+  full_name: '',
+  classroom: '',
+  photo: null,
+  assigned_books: [],
+  is_active: true,
+};
+
 const coverColors = [
   'from-teal-600 to-cyan-500',
   'from-indigo-600 to-sky-500',
@@ -54,18 +74,29 @@ const coverColors = [
 ];
 
 export default function App() {
+  const [session, setSession] = useState({ checked: false, is_authenticated: false, user: null });
+  const [loginForm, setLoginForm] = useState({ username: '', password: '' });
+  const [loginError, setLoginError] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
   const [books, setBooks] = useState([]);
   const [scenes, setScenes] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [section, setSection] = useState('library');
   const [view, setView] = useState('books');
   const [selectedBookId, setSelectedBookId] = useState(null);
   const [editingBookId, setEditingBookId] = useState(null);
   const [editingChapterId, setEditingChapterId] = useState(null);
+  const [editingStudentId, setEditingStudentId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [studentSearchTerm, setStudentSearchTerm] = useState('');
   const [bookForm, setBookForm] = useState(emptyBookForm);
   const [chapterForm, setChapterForm] = useState(emptyChapterForm);
+  const [studentForm, setStudentForm] = useState(emptyStudentForm);
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingBook, setIsSavingBook] = useState(false);
   const [isSavingChapter, setIsSavingChapter] = useState(false);
+  const [isSavingStudent, setIsSavingStudent] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   const selectedBook = books.find((book) => book.id === selectedBookId) ?? null;
@@ -82,6 +113,14 @@ export default function App() {
     return books.filter((book) => `${book.title} ${book.description}`.toLowerCase().includes(query));
   }, [books, searchTerm]);
 
+  const filteredStudents = useMemo(() => {
+    const query = studentSearchTerm.trim().toLowerCase();
+    if (!query) return students;
+    return students.filter((student) =>
+      `${student.full_name} ${student.classroom}`.toLowerCase().includes(query),
+    );
+  }, [studentSearchTerm, students]);
+
   const publishedBooks = books.filter((book) => book.is_published).length;
 
   const loadTeacherContent = useCallback(async () => {
@@ -89,32 +128,80 @@ export default function App() {
     setErrorMessage('');
 
     try {
-      const [booksResponse, scenesResponse] = await Promise.all([listBooks(), listScenes()]);
+      const [booksResponse, scenesResponse, studentsResponse] = await Promise.all([
+        listBooks(),
+        listScenes(),
+        listStudents(),
+      ]);
       setBooks(booksResponse);
       setScenes(scenesResponse);
+      setStudents(studentsResponse);
     } catch (error) {
-      setErrorMessage(
-        `${error.message}. Verifica que el backend este corriendo y que hayas iniciado sesion como admin.`,
-      );
+      setErrorMessage(`${error.message}. Verifica que tu sesion de docente siga activa.`);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadTeacherContent();
+    async function checkSession() {
+      try {
+        const response = await getTeacherSession();
+        setSession({ checked: true, ...response });
+        if (response.is_authenticated) {
+          await loadTeacherContent();
+        } else {
+          setIsLoading(false);
+        }
+      } catch (error) {
+        setSession({ checked: true, is_authenticated: false, user: null });
+        setLoginError(error.message);
+        setIsLoading(false);
+      }
+    }
+
+    checkSession();
   }, [loadTeacherContent]);
+
+  async function handleLogin(event) {
+    event.preventDefault();
+    setIsLoggingIn(true);
+    setLoginError('');
+
+    try {
+      const response = await loginTeacher(loginForm);
+      setSession({ checked: true, ...response });
+      setLoginForm({ username: '', password: '' });
+      await loadTeacherContent();
+    } catch (error) {
+      setLoginError(error.message);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  }
+
+  async function handleLogout() {
+    await logoutTeacher();
+    setSession({ checked: true, is_authenticated: false, user: null });
+    setBooks([]);
+    setScenes([]);
+    setStudents([]);
+    setView('books');
+    setSection('library');
+  }
 
   function selectBook(book) {
     setSelectedBookId(book.id);
     setEditingBookId(null);
     setEditingChapterId(null);
+    setSection('library');
     setView('detail');
   }
 
   function openCreateBook() {
     setBookForm(emptyBookForm);
     setEditingBookId(null);
+    setSection('library');
     setView('book-form');
   }
 
@@ -127,6 +214,7 @@ export default function App() {
     });
     setEditingBookId(book.id);
     setSelectedBookId(book.id);
+    setSection('library');
     setView('book-form');
   }
 
@@ -148,10 +236,39 @@ export default function App() {
     });
     setEditingChapterId(chapter.id);
     setSelectedBookId(chapter.book);
+    setSection('library');
     setView('chapter-form');
   }
 
+  function openStudents() {
+    setSection('students');
+    setView('students');
+    setEditingStudentId(null);
+    setErrorMessage('');
+  }
+
+  function openCreateStudent() {
+    setStudentForm(emptyStudentForm);
+    setEditingStudentId(null);
+    setSection('students');
+    setView('student-form');
+  }
+
+  function openEditStudent(student) {
+    setStudentForm({
+      full_name: student.full_name,
+      classroom: student.classroom ?? '',
+      photo: null,
+      assigned_books: student.assigned_books ?? [],
+      is_active: student.is_active,
+    });
+    setEditingStudentId(student.id);
+    setSection('students');
+    setView('student-form');
+  }
+
   function goToBooks() {
+    setSection('library');
     setView('books');
     setSelectedBookId(null);
     setEditingBookId(null);
@@ -164,6 +281,7 @@ export default function App() {
       goToBooks();
       return;
     }
+    setSection('library');
     setView('detail');
     setEditingBookId(null);
     setEditingChapterId(null);
@@ -253,6 +371,43 @@ export default function App() {
     }
   }
 
+  async function handleSaveStudent(event) {
+    event.preventDefault();
+    const fullName = studentForm.full_name.trim();
+    if (!fullName) return;
+
+    setIsSavingStudent(true);
+    setErrorMessage('');
+
+    const payload = {
+      full_name: fullName,
+      classroom: studentForm.classroom.trim(),
+      photo: studentForm.photo,
+      assigned_books: studentForm.assigned_books,
+      is_active: studentForm.is_active,
+    };
+
+    try {
+      if (editingStudentId) {
+        const updated = await updateStudent(editingStudentId, payload);
+        setStudents((current) =>
+          current.map((student) => (student.id === updated.id ? updated : student)),
+        );
+      } else {
+        const created = await createStudent(payload);
+        setStudents((current) => [created, ...current]);
+      }
+
+      setStudentForm(emptyStudentForm);
+      setEditingStudentId(null);
+      setView('students');
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setIsSavingStudent(false);
+    }
+  }
+
   async function handleDeleteBook(book = selectedBook) {
     if (!book) return;
 
@@ -267,6 +422,13 @@ export default function App() {
       await deleteBook(book.id);
       setBooks((current) => current.filter((item) => item.id !== book.id));
       setScenes((current) => current.filter((scene) => scene.book !== book.id));
+      setStudents((current) =>
+        current.map((student) => ({
+          ...student,
+          assigned_books: student.assigned_books.filter((id) => id !== book.id),
+          assigned_books_detail: student.assigned_books_detail.filter((item) => item.id !== book.id),
+        })),
+      );
       setSelectedBookId(null);
       setView('books');
     } catch (error) {
@@ -296,15 +458,54 @@ export default function App() {
     }
   }
 
+  async function handleDeleteStudent(student) {
+    const confirmed = window.confirm(`Eliminar la cuenta de "${student.full_name}"?`);
+    if (!confirmed) return;
+
+    setErrorMessage('');
+
+    try {
+      await deleteStudent(student.id);
+      setStudents((current) => current.filter((item) => item.id !== student.id));
+    } catch (error) {
+      setErrorMessage(error.message);
+    }
+  }
+
+  if (!session.checked) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-950">
+        <LoadingBlock text="Verificando sesion docente" />
+      </main>
+    );
+  }
+
+  if (!session.is_authenticated) {
+    return (
+      <LoginView
+        errorMessage={loginError}
+        form={loginForm}
+        isLoggingIn={isLoggingIn}
+        onChange={(field, value) => setLoginForm((current) => ({ ...current, [field]: value }))}
+        onSubmit={handleLogin}
+      />
+    );
+  }
+
   return (
     <main className="min-h-screen bg-slate-100 text-slate-950">
       <div className="mx-auto min-h-screen max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
         <AppHeader
+          activeSection={section}
           booksCount={books.length}
-          publishedBooks={publishedBooks}
-          scenesCount={scenes.length}
           onCreateBook={openCreateBook}
           onGoHome={goToBooks}
+          onLogout={handleLogout}
+          onOpenStudents={openStudents}
+          publishedBooks={publishedBooks}
+          scenesCount={scenes.length}
+          studentsCount={students.length}
+          user={session.user}
         />
 
         {errorMessage && (
@@ -365,15 +566,112 @@ export default function App() {
             onSubmit={handleSaveChapter}
           />
         )}
+
+        {view === 'students' && (
+          <StudentsView
+            books={books}
+            isLoading={isLoading}
+            onCreateStudent={openCreateStudent}
+            onDeleteStudent={handleDeleteStudent}
+            onEditStudent={openEditStudent}
+            searchTerm={studentSearchTerm}
+            setSearchTerm={setStudentSearchTerm}
+            students={filteredStudents}
+          />
+        )}
+
+        {view === 'student-form' && (
+          <StudentFormView
+            books={books}
+            form={studentForm}
+            isSaving={isSavingStudent}
+            onBack={openStudents}
+            onChange={(field, value) =>
+              setStudentForm((current) => ({ ...current, [field]: value }))
+            }
+            onSubmit={handleSaveStudent}
+            student={students.find((student) => student.id === editingStudentId)}
+          />
+        )}
       </div>
     </main>
   );
 }
 
-function AppHeader({ booksCount, publishedBooks, scenesCount, onCreateBook, onGoHome }) {
+function LoginView({ errorMessage, form, isLoggingIn, onChange, onSubmit }) {
+  return (
+    <main className="min-h-screen bg-slate-100 px-4 py-8 text-slate-950">
+      <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-5xl items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+        <section>
+          <div className="flex items-center gap-3">
+            <div className="flex size-12 items-center justify-center rounded-lg bg-teal-700 text-white">
+              <Library size={25} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-teal-700">BibliotecaAR</p>
+              <h1 className="text-2xl font-bold">Acceso docente</h1>
+            </div>
+          </div>
+          <h2 className="mt-8 text-4xl font-bold">Gestiona libros, capitulos y cuentas infantiles.</h2>
+          <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
+            Ingresa con tu cuenta docente para administrar la biblioteca AR y preparar el acceso por reconocimiento facial de los ninios.
+          </p>
+        </section>
+
+        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2 text-sm font-semibold text-teal-700">
+            <ShieldCheck size={18} />
+            Sesion segura
+          </div>
+          <h3 className="mt-2 text-2xl font-bold">Iniciar sesion</h3>
+          {errorMessage && (
+            <div className="mt-4 flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+              <AlertCircle className="mt-0.5 shrink-0" size={17} />
+              {errorMessage}
+            </div>
+          )}
+          <form className="mt-5 space-y-4" onSubmit={onSubmit}>
+            <Field label="Usuario">
+              <input
+                className="input"
+                value={form.username}
+                onChange={(event) => onChange('username', event.target.value)}
+              />
+            </Field>
+            <Field label="Contrasena">
+              <input
+                className="input"
+                type="password"
+                value={form.password}
+                onChange={(event) => onChange('password', event.target.value)}
+              />
+            </Field>
+            <button className="btn-primary w-full justify-center" disabled={isLoggingIn} type="submit">
+              {isLoggingIn ? <Loader2 className="animate-spin" size={17} /> : <ShieldCheck size={17} />}
+              Entrar
+            </button>
+          </form>
+        </section>
+      </div>
+    </main>
+  );
+}
+
+function AppHeader({
+  activeSection,
+  booksCount,
+  publishedBooks,
+  scenesCount,
+  studentsCount,
+  user,
+  onCreateBook,
+  onGoHome,
+  onLogout,
+  onOpenStudents,
+}) {
   return (
     <header className="rounded-lg border border-slate-200 bg-white px-4 py-4 shadow-sm">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <button className="flex items-center gap-3 text-left" onClick={onGoHome} type="button">
           <div className="flex size-11 items-center justify-center rounded-lg bg-teal-700 text-white">
             <Library size={23} />
@@ -384,16 +682,39 @@ function AppHeader({ booksCount, publishedBooks, scenesCount, onCreateBook, onGo
           </div>
         </button>
 
-        <div className="grid grid-cols-3 gap-2 lg:min-w-[420px]">
+        <div className="grid grid-cols-4 gap-2 xl:min-w-[560px]">
           <Metric label="Libros" value={booksCount} />
           <Metric label="Publicados" value={publishedBooks} />
           <Metric label="Capitulos" value={scenesCount} />
+          <Metric label="Ninios" value={studentsCount} />
         </div>
 
-        <button className="btn-primary justify-center" onClick={onCreateBook} type="button">
-          <Plus size={17} />
-          Nuevo libro
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            className={activeSection === 'library' ? 'btn-primary' : 'btn-secondary'}
+            onClick={onGoHome}
+            type="button"
+          >
+            <BookOpen size={17} />
+            Biblioteca
+          </button>
+          <button
+            className={activeSection === 'students' ? 'btn-primary' : 'btn-secondary'}
+            onClick={onOpenStudents}
+            type="button"
+          >
+            <Users size={17} />
+            Ninios
+          </button>
+          <button className="btn-secondary" onClick={onCreateBook} type="button">
+            <Plus size={17} />
+            Libro
+          </button>
+          <button className="btn-secondary" onClick={onLogout} type="button" title={user?.username}>
+            <LogOut size={17} />
+            Salir
+          </button>
+        </div>
       </div>
     </header>
   );
@@ -420,15 +741,7 @@ function BooksView({
             Revisa tus libros, entra al detalle para administrar capitulos o crea uno nuevo.
           </p>
         </div>
-        <label className="flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-500 lg:w-80">
-          <Search size={17} />
-          <input
-            className="min-w-0 flex-1 bg-transparent text-slate-900 outline-none placeholder:text-slate-400"
-            placeholder="Buscar libro"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-          />
-        </label>
+        <SearchBox placeholder="Buscar libro" value={searchTerm} onChange={setSearchTerm} />
       </div>
 
       {isLoading ? (
@@ -458,6 +771,116 @@ function BooksView({
         />
       )}
     </section>
+  );
+}
+
+function StudentsView({
+  books,
+  isLoading,
+  onCreateStudent,
+  onDeleteStudent,
+  onEditStudent,
+  searchTerm,
+  setSearchTerm,
+  students,
+}) {
+  return (
+    <section className="mt-6">
+      <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-teal-700">Acceso infantil</p>
+          <h2 className="mt-1 text-3xl font-bold">Cuentas de ninios</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+            Registra fotos faciales, aulas y libros asignados para que la app infantil reconozca al estudiante.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <SearchBox placeholder="Buscar ninio" value={searchTerm} onChange={setSearchTerm} />
+          <button className="btn-primary justify-center" onClick={onCreateStudent} type="button">
+            <Plus size={17} />
+            Nuevo ninio
+          </button>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="mt-6 rounded-lg border border-slate-200 bg-white">
+          <LoadingBlock text="Cargando ninios" />
+        </div>
+      ) : students.length ? (
+        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {students.map((student) => (
+            <StudentCard
+              books={books}
+              key={student.id}
+              onDelete={() => onDeleteStudent(student)}
+              onEdit={() => onEditStudent(student)}
+              student={student}
+            />
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          actionLabel="Crear primer ninio"
+          icon={Users}
+          onAction={onCreateStudent}
+          text="Cada perfil puede guardar una foto facial y los libros que vera en la app."
+          title="Aun no hay cuentas infantiles"
+        />
+      )}
+    </section>
+  );
+}
+
+function StudentCard({ books, student, onDelete, onEdit }) {
+  const assignedBooks = student.assigned_books_detail?.length
+    ? student.assigned_books_detail
+    : books.filter((book) => student.assigned_books?.includes(book.id));
+
+  return (
+    <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex items-start gap-4">
+        {student.photo_url ? (
+          <img alt="" className="size-20 rounded-lg object-cover" src={student.photo_url} />
+        ) : (
+          <div className="flex size-20 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
+            <UserRound size={34} />
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="truncate text-lg font-bold">{student.full_name}</h3>
+              <p className="text-sm text-slate-500">{student.classroom || 'Sin aula'}</p>
+            </div>
+            <span className={`rounded-md px-2 py-1 text-xs font-semibold ${student.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+              {student.is_active ? 'Activo' : 'Inactivo'}
+            </span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
+            <ResourcePill icon={Eye} text={student.has_face_signature ? 'Rostro registrado' : 'Sin rostro'} />
+            <ResourcePill icon={BookOpen} text={`${assignedBooks.length} libros`} />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-lg bg-slate-50 p-3">
+        <p className="text-xs font-semibold uppercase text-slate-500">Libros asignados</p>
+        <p className="mt-2 text-sm text-slate-700">
+          {assignedBooks.length ? assignedBooks.map((book) => book.title).join(', ') : 'Sin libros asignados'}
+        </p>
+      </div>
+
+      <div className="mt-4 flex gap-2">
+        <button className="btn-secondary flex-1 justify-center" onClick={onEdit} type="button">
+          <Edit3 size={17} />
+          Editar
+        </button>
+        <IconButton label="Eliminar ninio" onClick={onDelete}>
+          <Trash2 size={17} />
+        </IconButton>
+      </div>
+    </article>
   );
 }
 
@@ -626,14 +1049,12 @@ function BookFormView({ book, form, isSaving, onBack, onChange, onSubmit }) {
         {isEditing ? 'Volver al detalle' : 'Volver a libros'}
       </button>
 
-      <div className="mt-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="text-sm font-semibold text-teal-700">Libro</p>
-        <h2 className="mt-1 text-3xl font-bold">{isEditing ? 'Editar libro' : 'Crear libro'}</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
-          Define la informacion principal que vera el docente antes de administrar capitulos.
-        </p>
-
-        <form className="mt-6 grid gap-4 md:grid-cols-2" onSubmit={onSubmit}>
+      <FormPanel
+        eyebrow="Libro"
+        title={isEditing ? 'Editar libro' : 'Crear libro'}
+        text="Define la informacion principal que vera el docente antes de administrar capitulos."
+      >
+        <form className="grid gap-4 md:grid-cols-2" onSubmit={onSubmit}>
           <Field label="Titulo">
             <input
               className="input"
@@ -673,17 +1094,9 @@ function BookFormView({ book, form, isSaving, onBack, onChange, onSubmit }) {
               />
             </Field>
           </div>
-          <div className="flex gap-2 md:col-span-2">
-            <button className="btn-primary" disabled={isSaving} type="submit">
-              {isSaving ? <Loader2 className="animate-spin" size={17} /> : <Save size={17} />}
-              {isEditing ? 'Guardar cambios' : 'Crear libro'}
-            </button>
-            <button className="btn-secondary" onClick={onBack} type="button">
-              Cancelar
-            </button>
-          </div>
+          <FormActions isSaving={isSaving} onBack={onBack} submitText={isEditing ? 'Guardar cambios' : 'Crear libro'} />
         </form>
-      </div>
+      </FormPanel>
     </section>
   );
 }
@@ -698,16 +1111,12 @@ function ChapterFormView({ book, chapter, form, isSaving, onBack, onChange, onSu
         Volver al detalle
       </button>
 
-      <div className="mt-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="text-sm font-semibold text-teal-700">{book.title}</p>
-        <h2 className="mt-1 text-3xl font-bold">
-          {isEditing ? 'Editar capitulo' : 'Crear capitulo'}
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
-          Completa el texto, recursos y clave del prefab. El QR se genera automaticamente en el backend.
-        </p>
-
-        <form className="mt-6 grid gap-4 md:grid-cols-2" onSubmit={onSubmit}>
+      <FormPanel
+        eyebrow={book.title}
+        title={isEditing ? 'Editar capitulo' : 'Crear capitulo'}
+        text="Completa el texto, recursos y clave del prefab. El QR se genera automaticamente en el backend."
+      >
+        <form className="grid gap-4 md:grid-cols-2" onSubmit={onSubmit}>
           <Field label="Titulo">
             <input
               className="input"
@@ -766,18 +1175,145 @@ function ChapterFormView({ book, chapter, form, isSaving, onBack, onChange, onSu
             </div>
           )}
 
-          <div className="flex gap-2 md:col-span-2">
-            <button className="btn-primary" disabled={isSaving} type="submit">
-              {isSaving ? <Loader2 className="animate-spin" size={17} /> : <Save size={17} />}
-              {isEditing ? 'Guardar cambios' : 'Crear capitulo'}
-            </button>
-            <button className="btn-secondary" onClick={onBack} type="button">
-              Cancelar
-            </button>
-          </div>
+          <FormActions isSaving={isSaving} onBack={onBack} submitText={isEditing ? 'Guardar cambios' : 'Crear capitulo'} />
         </form>
-      </div>
+      </FormPanel>
     </section>
+  );
+}
+
+function StudentFormView({ books, form, isSaving, onBack, onChange, onSubmit, student }) {
+  const isEditing = Boolean(student);
+
+  function toggleBook(bookId) {
+    const current = form.assigned_books;
+    if (current.includes(bookId)) {
+      onChange('assigned_books', current.filter((id) => id !== bookId));
+      return;
+    }
+    onChange('assigned_books', [...current, bookId]);
+  }
+
+  return (
+    <section className="mt-6 max-w-5xl">
+      <button className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500" onClick={onBack} type="button">
+        <ArrowLeft size={16} />
+        Volver a ninios
+      </button>
+
+      <FormPanel
+        eyebrow="Cuenta infantil"
+        title={isEditing ? 'Editar cuenta de ninio' : 'Crear cuenta de ninio'}
+        text="Registra una foto facial y asigna los libros que vera el estudiante en la app infantil."
+      >
+        <form className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]" onSubmit={onSubmit}>
+          <div className="space-y-4">
+            <Field label="Nombre completo">
+              <input
+                className="input"
+                placeholder="Ej. Ana Torres"
+                value={form.full_name}
+                onChange={(event) => onChange('full_name', event.target.value)}
+              />
+            </Field>
+            <Field label="Aula o seccion">
+              <input
+                className="input"
+                placeholder="Ej. Inicial 5"
+                value={form.classroom}
+                onChange={(event) => onChange('classroom', event.target.value)}
+              />
+            </Field>
+            <Field label={isEditing ? 'Actualizar foto facial' : 'Foto facial'}>
+              <input
+                accept="image/*"
+                className="input"
+                onChange={(event) => onChange('photo', event.target.files?.[0] ?? null)}
+                type="file"
+              />
+            </Field>
+            <label className="flex h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm">
+              <input
+                checked={form.is_active}
+                onChange={(event) => onChange('is_active', event.target.checked)}
+                type="checkbox"
+              />
+              Cuenta activa
+            </label>
+          </div>
+
+          <aside className="space-y-4">
+            {student?.photo_url && (
+              <img alt="" className="h-44 w-full rounded-lg object-cover" src={student.photo_url} />
+            )}
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-sm font-semibold">Libros asignados</p>
+              <div className="mt-3 max-h-72 space-y-2 overflow-auto pr-1">
+                {books.map((book) => (
+                  <label
+                    className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-3 text-sm"
+                    key={book.id}
+                  >
+                    <input
+                      checked={form.assigned_books.includes(book.id)}
+                      onChange={() => toggleBook(book.id)}
+                      type="checkbox"
+                    />
+                    <span>
+                      <span className="block font-semibold">{book.title}</span>
+                      <span className="block text-xs text-slate-500">
+                        {book.is_published ? 'Publicado' : 'Borrador'}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </aside>
+
+          <FormActions isSaving={isSaving} onBack={onBack} submitText={isEditing ? 'Guardar cambios' : 'Crear cuenta'} />
+        </form>
+      </FormPanel>
+    </section>
+  );
+}
+
+function FormPanel({ children, eyebrow, text, title }) {
+  return (
+    <div className="mt-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <p className="text-sm font-semibold text-teal-700">{eyebrow}</p>
+      <h2 className="mt-1 text-3xl font-bold">{title}</h2>
+      <p className="mt-2 text-sm leading-6 text-slate-600">{text}</p>
+      <div className="mt-6">{children}</div>
+    </div>
+  );
+}
+
+function FormActions({ isSaving, onBack, submitText }) {
+  return (
+    <div className="flex gap-2 md:col-span-2 lg:col-span-2">
+      <button className="btn-primary" disabled={isSaving} type="submit">
+        {isSaving ? <Loader2 className="animate-spin" size={17} /> : <Save size={17} />}
+        {submitText}
+      </button>
+      <button className="btn-secondary" onClick={onBack} type="button">
+        Cancelar
+      </button>
+    </div>
+  );
+}
+
+function SearchBox({ onChange, placeholder, value }) {
+  return (
+    <label className="flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-500 lg:w-80">
+      <Search size={17} />
+      <input
+        className="min-w-0 flex-1 bg-transparent text-slate-900 outline-none placeholder:text-slate-400"
+        placeholder={placeholder}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
   );
 }
 
