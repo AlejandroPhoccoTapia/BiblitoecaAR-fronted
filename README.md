@@ -2,6 +2,8 @@
 
 Panel web para la gestion de libros y capitulos de BibliotecaAR.
 
+La pantalla de acceso permite iniciar sesion o crear la primera cuenta docente cuando el backend desplegado aun no tiene usuarios.
+
 ## Desarrollo
 
 ```powershell

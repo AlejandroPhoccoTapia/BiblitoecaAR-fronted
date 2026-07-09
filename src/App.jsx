@@ -36,6 +36,7 @@ import {
   listStudents,
   loginTeacher,
   logoutTeacher,
+  registerTeacher,
   updateBook,
   updateScene,
   updateStudent,
@@ -76,8 +77,15 @@ const coverColors = [
 export default function App() {
   const [session, setSession] = useState({ checked: false, is_authenticated: false, user: null });
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
+  const [registerForm, setRegisterForm] = useState({
+    username: '',
+    password: '',
+    first_name: '',
+    last_name: '',
+  });
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [authMode, setAuthMode] = useState('login');
 
   const [books, setBooks] = useState([]);
   const [scenes, setScenes] = useState([]);
@@ -172,6 +180,23 @@ export default function App() {
       const response = await loginTeacher(loginForm);
       setSession({ checked: true, ...response });
       setLoginForm({ username: '', password: '' });
+      await loadTeacherContent();
+    } catch (error) {
+      setLoginError(error.message);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  }
+
+  async function handleRegister(event) {
+    event.preventDefault();
+    setIsLoggingIn(true);
+    setLoginError('');
+
+    try {
+      const response = await registerTeacher(registerForm);
+      setSession({ checked: true, ...response });
+      setRegisterForm({ username: '', password: '', first_name: '', last_name: '' });
       await loadTeacherContent();
     } catch (error) {
       setLoginError(error.message);
@@ -483,11 +508,21 @@ export default function App() {
   if (!session.is_authenticated) {
     return (
       <LoginView
+        authMode={authMode}
         errorMessage={loginError}
         form={loginForm}
         isLoggingIn={isLoggingIn}
         onChange={(field, value) => setLoginForm((current) => ({ ...current, [field]: value }))}
+        onModeChange={(mode) => {
+          setAuthMode(mode);
+          setLoginError('');
+        }}
+        onRegisterChange={(field, value) =>
+          setRegisterForm((current) => ({ ...current, [field]: value }))
+        }
+        onRegisterSubmit={handleRegister}
         onSubmit={handleLogin}
+        registerForm={registerForm}
       />
     );
   }
@@ -598,7 +633,20 @@ export default function App() {
   );
 }
 
-function LoginView({ errorMessage, form, isLoggingIn, onChange, onSubmit }) {
+function LoginView({
+  authMode,
+  errorMessage,
+  form,
+  isLoggingIn,
+  onChange,
+  onModeChange,
+  onRegisterChange,
+  onRegisterSubmit,
+  onSubmit,
+  registerForm,
+}) {
+  const isRegistering = authMode === 'register';
+
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-8 text-slate-950">
       <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-5xl items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
@@ -623,34 +671,86 @@ function LoginView({ errorMessage, form, isLoggingIn, onChange, onSubmit }) {
             <ShieldCheck size={18} />
             Sesion segura
           </div>
-          <h3 className="mt-2 text-2xl font-bold">Iniciar sesion</h3>
+          <h3 className="mt-2 text-2xl font-bold">
+            {isRegistering ? 'Crear cuenta docente' : 'Iniciar sesion'}
+          </h3>
           {errorMessage && (
             <div className="mt-4 flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
               <AlertCircle className="mt-0.5 shrink-0" size={17} />
               {errorMessage}
             </div>
           )}
-          <form className="mt-5 space-y-4" onSubmit={onSubmit}>
-            <Field label="Usuario">
-              <input
-                className="input"
-                value={form.username}
-                onChange={(event) => onChange('username', event.target.value)}
-              />
-            </Field>
-            <Field label="Contrasena">
-              <input
-                className="input"
-                type="password"
-                value={form.password}
-                onChange={(event) => onChange('password', event.target.value)}
-              />
-            </Field>
-            <button className="btn-primary w-full justify-center" disabled={isLoggingIn} type="submit">
-              {isLoggingIn ? <Loader2 className="animate-spin" size={17} /> : <ShieldCheck size={17} />}
-              Entrar
-            </button>
-          </form>
+          {isRegistering ? (
+            <form className="mt-5 space-y-4" onSubmit={onRegisterSubmit}>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Nombre">
+                  <input
+                    className="input"
+                    value={registerForm.first_name}
+                    onChange={(event) => onRegisterChange('first_name', event.target.value)}
+                  />
+                </Field>
+                <Field label="Apellido">
+                  <input
+                    className="input"
+                    value={registerForm.last_name}
+                    onChange={(event) => onRegisterChange('last_name', event.target.value)}
+                  />
+                </Field>
+              </div>
+              <Field label="Usuario">
+                <input
+                  className="input"
+                  required
+                  value={registerForm.username}
+                  onChange={(event) => onRegisterChange('username', event.target.value)}
+                />
+              </Field>
+              <Field label="Contrasena">
+                <input
+                  className="input"
+                  minLength={8}
+                  required
+                  type="password"
+                  value={registerForm.password}
+                  onChange={(event) => onRegisterChange('password', event.target.value)}
+                />
+              </Field>
+              <button className="btn-primary w-full justify-center" disabled={isLoggingIn} type="submit">
+                {isLoggingIn ? <Loader2 className="animate-spin" size={17} /> : <ShieldCheck size={17} />}
+                Crear cuenta
+              </button>
+            </form>
+          ) : (
+            <form className="mt-5 space-y-4" onSubmit={onSubmit}>
+              <Field label="Usuario">
+                <input
+                  className="input"
+                  value={form.username}
+                  onChange={(event) => onChange('username', event.target.value)}
+                />
+              </Field>
+              <Field label="Contrasena">
+                <input
+                  className="input"
+                  type="password"
+                  value={form.password}
+                  onChange={(event) => onChange('password', event.target.value)}
+                />
+              </Field>
+              <button className="btn-primary w-full justify-center" disabled={isLoggingIn} type="submit">
+                {isLoggingIn ? <Loader2 className="animate-spin" size={17} /> : <ShieldCheck size={17} />}
+                Entrar
+              </button>
+            </form>
+          )}
+          <button
+            className="mt-4 w-full text-center text-sm font-semibold text-teal-700 hover:text-teal-900"
+            onClick={() => onModeChange(isRegistering ? 'login' : 'register')}
+            type="button"
+          >
+            {isRegistering ? 'Ya tengo cuenta docente' : 'Crear primera cuenta docente'}
+          </button>
         </section>
       </div>
     </main>

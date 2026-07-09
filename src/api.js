@@ -64,6 +64,13 @@ export function loginTeacher(credentials) {
   });
 }
 
+export function registerTeacher(data) {
+  return request('/auth/register/', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
 export function logoutTeacher() {
   return request('/auth/logout/', {
     method: 'POST',
