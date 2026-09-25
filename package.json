@@ -12,11 +12,13 @@
     "test:api-demo": "node tests/mock-api.mjs"
   },
   "dependencies": {
+    "@google/model-viewer": "4.3.1",
     "@tailwindcss/vite": "^4.1.11",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "tailwindcss": "^4.1.11"
+    "tailwindcss": "^4.1.11",
+    "three": "0.183.2"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
