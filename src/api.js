@@ -1,4 +1,6 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '/api').replace(/\/$/, '');
+import { encodePayload, formatApiError } from './lib/forms.js';
+
+const API_BASE_URL = (import.meta.env?.VITE_API_BASE_URL ?? '/api').replace(/\/$/, '');
 let csrfToken = null;
 
 async function request(path, options = {}) {
@@ -11,21 +13,32 @@ async function request(path, options = {}) {
     headers['X-CSRFToken'] = requestCsrfToken;
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    credentials: 'include',
-    headers,
-    ...options,
-  });
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      credentials: 'include',
+      ...options,
+      headers: { ...headers, ...options.headers },
+      signal: options.signal ?? AbortSignal.timeout(60000),
+    });
+  } catch (error) {
+    if (error.name === 'AbortError') throw error;
+    throw new Error(error.name === 'TimeoutError'
+      ? 'El servidor tardó demasiado. Comprueba si el cambio se guardó antes de intentarlo otra vez.'
+      : 'No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.');
+  }
 
   if (!response.ok) {
     let message = `Error ${response.status}`;
     try {
       const body = await response.json();
-      message = body.detail || JSON.stringify(body);
+      message = formatApiError(body) || message;
     } catch {
       message = response.statusText || message;
     }
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
   }
 
   if (response.status === 204) return null;
@@ -46,17 +59,6 @@ function getCookie(name) {
     .split('; ')
     .find((row) => row.startsWith(`${name}=`))
     ?.split('=')[1];
-}
-
-function asFormData(data) {
-  const formData = new FormData();
-
-  Object.entries(data).forEach(([key, value]) => {
-    if (value === undefined || value === null || value === '') return;
-    formData.append(key, value);
-  });
-
-  return formData;
 }
 
 export function listBooks() {
@@ -90,14 +92,14 @@ export function logoutTeacher() {
 export function createBook(data) {
   return request('/teacher/books/', {
     method: 'POST',
-    body: asFormData(data),
+    body: encodePayload(data),
   });
 }
 
 export function updateBook(id, data) {
   return request(`/teacher/books/${id}/`, {
     method: 'PATCH',
-    body: asFormData(data),
+    body: encodePayload(data),
   });
 }
 
@@ -114,14 +116,14 @@ export function listScenes() {
 export function createScene(data) {
   return request('/teacher/scenes/', {
     method: 'POST',
-    body: asFormData(data),
+    body: encodePayload(data),
   });
 }
 
 export function updateScene(id, data) {
   return request(`/teacher/scenes/${id}/`, {
     method: 'PATCH',
-    body: asFormData(data),
+    body: encodePayload(data),
   });
 }
 
@@ -138,14 +140,16 @@ export function listStudents() {
 export function createStudent(data) {
   return request('/teacher/students/', {
     method: 'POST',
-    body: asFormData(data),
+    body: encodePayload(data),
   });
 }
 
 export function updateStudent(id, data) {
+  // This editor submits the entire profile. With a photo, PUT tells DRF to
+  // interpret an omitted multipart list as [], rather than leaving it unchanged.
   return request(`/teacher/students/${id}/`, {
-    method: 'PATCH',
-    body: asFormData(data),
+    method: 'PUT',
+    body: encodePayload(data),
   });
 }
 

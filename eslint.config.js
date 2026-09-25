@@ -12,6 +12,9 @@ export default [
       ecmaVersion: 2020,
       globals: {
         document: 'readonly',
+        Blob: 'readonly',
+        AbortSignal: 'readonly',
+        URL: 'readonly',
         fetch: 'readonly',
         FormData: 'readonly',
         window: 'readonly',
