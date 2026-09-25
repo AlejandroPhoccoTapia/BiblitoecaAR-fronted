@@ -2,7 +2,21 @@
 
 Aplicación React para administrar libros y capítulos vinculados a realidad aumentada: permite publicar contenido, subir texto/audio/modelos GLB, consultar los QR generados por Django y registrar estudiantes con fotografías y libros asignados.
 
-Documentación contrastada con el código el **24 de septiembre de 2026**. Es un MVP; las funciones implementadas y las integraciones pendientes se distinguen abajo. Esta guía no acredita que el despliegue o el recorrido completo hayan sido probados.
+Documentación actualizada el **24 de septiembre de 2026**. Es un MVP; las comprobaciones locales están descritas en la sección 7. El despliegue y la integración con Django/Android requieren validación independiente.
+
+## Mejoras de esta revisión
+
+- Panel adaptable con nueva cabecera, indicadores, navegación y tarjetas.
+- Búsqueda sin distinción de tildes, filtros de estado y ordenación de libros.
+- Mensajes diferenciados para biblioteca vacía y búsqueda sin resultados.
+- Formularios con validación, vista previa de fotos/portadas y reproducción de audio.
+- Selección múltiple de libros corregida, incluidos campos vacíos y retirada de todas las asignaciones.
+- Retirada explícita del GLB existente desde el editor de capítulo.
+- Avisos de éxito, errores por campo, timeout de red y carga parcial del catálogo.
+- Protección frente a envíos duplicados, confirmación al eliminar capítulos y aviso al salir con cambios sin guardar.
+- Seis pruebas de regresión y servidor de datos ficticios para revisión visual.
+
+Se mantienen commits separados por hitos (API, dependencias, interfaz y documentación) para identificar cambios y poder revertirlos. Evitar agrupar futuras mejoras independientes en un único commit.
 
 ## 1. Contexto del proyecto
 
@@ -36,6 +50,9 @@ src/
   App.jsx        Sesión, estado, navegación, CRUD y componentes de pantalla
   api.js         URL base, fetch, CSRF, multipart y acceso a endpoints
   styles.css     Tailwind y estilos compartidos
+  components/    AppHeader y FileUpload reutilizables
+  lib/forms.js   Codificación JSON/multipart, errores, búsqueda y orden
+tests/           Pruebas Node y API ficticia para revisión local
 index.html
 vite.config.js   Plugins React/Tailwind y proxy local /api y /media
 eslint.config.js
@@ -70,7 +87,7 @@ La descarga de QR usa el atributo HTML `download`; con archivos en otro origen s
 
 Se pueden listar y buscar por nombre/aula, crear, editar, activar/desactivar, subir una fotografía y seleccionar libros. El backend calcula la firma de imagen cuando recibe una foto mediante la API.
 
-No hay captura de cámara ni login facial en este panel. `StudentProfile` es un perfil, no una cuenta Django con contraseña. El endpoint facial existe en Django, pero Unity aún no lo consume. Asignar libros no restringe el endpoint público de Unity. La asignación múltiple tiene un problema de serialización explicado en la sección 8.
+No hay captura de cámara ni login facial en este panel. `StudentProfile` es un perfil, no una cuenta Django con contraseña. El endpoint facial existe en Django, pero Unity aún no lo consume. Asignar libros no restringe el endpoint público de Unity. La asignación múltiple admite selección individual, selección de todos y retirada de todos.
 
 ## 4. Desarrollo local
 
@@ -120,6 +137,8 @@ Las variables `VITE_*` se incorporan al código del navegador. No colocar claves
 | Capítulos | `/teacher/scenes/`, `/teacher/scenes/<id>/`. |
 | Estudiantes | `/teacher/students/`, `/teacher/students/<id>/`. |
 
+Para libros y capítulos se usa PATCH; el editor de estudiantes envía el perfil completo mediante PUT. Sin archivos se usa JSON, conservando cadenas vacías y listas vacías. Con archivos se usa multipart y se repite `assigned_books` por cada ID. PUT permite a DRF interpretar una lista multipart ausente como vacía al subir una foto y quitar todas las asignaciones simultáneamente. No reutilizar `updateStudent()` para parches parciales sin adaptar este contrato.
+
 La API docente requiere `is_staff=True`. Las colecciones deben devolver arreglos; si se agrega paginación con `results`, adaptar el cliente. Después de guardar, la respuesta actualiza el estado local; no hay sincronización en tiempo real ni persistencia de pantalla al recargar.
 
 | Recurso | Campos clave de respuesta |
@@ -149,12 +168,13 @@ Los recursos vienen de Django o Supabase Storage; no se alojan como parte del bu
 ## 7. Validación
 
 ```powershell
+npm test
 npm run lint
 npm run build
 npm run preview
 ```
 
-No hay suite de tests de frontend configurada. Lint/build no validan permisos, cookies, subidas ni AR. `preview` sirve el build; no asumir que reproduce el proxy de desarrollo. Construir con la URL de API adecuada y permitir el origen usado para esa prueba.
+La suite usa `node:test` (Node 22.12+ recomendado), sin dependencias de test adicionales. Cubre campos vacíos, booleanos, listas multipart, método PUT, CSRF, retirada de GLB, errores HTTP/red, búsqueda con tildes y orden de capítulos con huecos. Los fetch son simulados: estas pruebas no acreditan persistencia en Django. Lint/build no validan permisos, cookies, subidas ni AR. `preview` sirve el build; no asumir que reproduce el proxy de desarrollo. Construir con la URL de API adecuada y permitir el origen usado para esa prueba.
 
 Recorrido manual:
 1. Entrar, recargar, comprobar persistencia de sesión y cerrar sesión.
@@ -165,20 +185,29 @@ Recorrido manual:
 6. Crear/editar estudiante, asignar varios libros y retirar todas las asignaciones.
 7. Probar el QR con Unity en Android para validar modelo, audio y seguimiento.
 
-Estos comandos y recorridos son instrucciones, no resultados de pruebas ejecutadas al redactar esta documentación.
+Validado en esta revisión: seis pruebas Node, ESLint y compilación de producción. La revisión visual local con datos ficticios comprobó biblioteca, búsqueda sin resultados y edición de estudiante vaciando aula/asignaciones. Se aplicaron actualizaciones compatibles del lockfile; npm audit reportó cero vulnerabilidades tras la corrección. Falta validar con Django real, subidas persistentes, sesión entre dominios y Android.
+
+Para revisar la UI sin datos reales, ejecutar en dos terminales:
+
+```powershell
+npm run test:api-demo
+npm run dev
+```
+
+La API ficticia escucha exclusivamente en 127.0.0.1:8000 y guarda datos en memoria. No iniciarla junto al backend real ni apuntar a un backend remoto mediante .env.local para esta prueba. Inicia con sesión ficticia y acepta login de demostración; no valida credenciales, CSRF ni multipart. Detener el proceso descarta los datos. Este servidor es una herramienta local de prueba, no forma parte del build ni del despliegue.
 
 ## 8. Problemas conocidos y pendientes
 
 | Punto | Estado observado |
 | --- | --- |
-| Asignación múltiple | `asFormData()` hace un único append del arreglo. `[1,2]` se convierte en `"1,2"`; Django espera una lista de IDs. Corregir serialización y probar también vaciado. |
-| Vaciar campos | Se omiten `''`, `null` y `undefined`; vaciar descripción/aula puede dejar el valor anterior. |
-| Retirar archivos | Se permite sustituirlos. Django admite `remove_glb_model`, pero no hay control dedicado ni retirada general de portada/audio/foto. |
+| Asignación múltiple | Corregida en JSON/multipart; falta comprobar el recorrido con archivos contra Django real. |
+| Vaciar campos | Se conservan cadenas vacías y listas; null/undefined se omiten para conservar archivos actuales. |
+| Retirar archivos | Se pueden sustituir y retirar modelos GLB. No hay retirada general de portada/audio/foto. |
 | Flujo infantil | No hay login facial ni autorización por estudiante en este panel. Unity tampoco integra aún la identificación. |
 | Fotos | El backend puede guardarlas en el bucket público de media; no existe flujo privado específico. |
 | Reconocimiento | El backend utiliza comparación LBP experimental, no autenticación biométrica validada. |
-| Carga inicial | Se descarga todo el catálogo. Un fallo en cualquiera de las tres peticiones impide completar la carga conjunta. |
-| Organización | Estado, lógica y componentes concentrados en `App.jsx`; no hay rutas por pantalla. |
+| Carga inicial | Se descarga todo el catálogo; Promise.allSettled conserva los recursos que sí cargan y muestra errores de los fallidos. Sin paginación. |
+| Organización | Cabecera, archivos y utilidades extraídos; App.jsx todavía concentra el resto. No hay rutas por pantalla ni sincronización en tiempo real. |
 | Seguimiento educativo | No hay progreso, evaluaciones ni analítica de aprendizaje persistida. |
 
 Diagnóstico: 403 al guardar requiere revisar sesión, CSRF, orígenes y cookies; error de red, URL base y Django; 400 en estudiantes, formato de `assigned_books`; QR sin recursos, JSON Unity y URLs del storage.
