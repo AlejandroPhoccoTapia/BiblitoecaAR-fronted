@@ -2,7 +2,7 @@
 
 Aplicación React para administrar libros y capítulos vinculados a realidad aumentada: permite publicar contenido, subir texto/audio/modelos GLB, consultar los QR generados por Django y registrar estudiantes con fotografías y libros asignados.
 
-Documentación actualizada el **24 de septiembre de 2026**. Es un MVP; las comprobaciones locales están descritas en la sección 7. El despliegue y la integración con Django/Android requieren validación independiente.
+Documentación actualizada el **25 de septiembre de 2026**. Es un MVP; las comprobaciones locales están descritas en la sección 7. El despliegue y la integración con Django/Android requieren validación independiente.
 
 ## Mejoras de esta revisión
 
@@ -12,6 +12,7 @@ Documentación actualizada el **24 de septiembre de 2026**. Es un MVP; las compr
 - Formularios con validación, vista previa de fotos/portadas y reproducción de audio.
 - Selección múltiple de libros corregida, incluidos campos vacíos y retirada de todas las asignaciones.
 - Retirada explícita del GLB existente desde el editor de capítulo.
+- Vista previa interactiva del GLB nuevo antes de guardar y del modelo ya guardado desde la ficha del capítulo, con controles para clips de animación incluidos.
 - Avisos de éxito, errores por campo, timeout de red y carga parcial del catálogo.
 - Protección frente a envíos duplicados, confirmación al eliminar capítulos y aviso al salir con cambios sin guardar.
 - Seis pruebas de regresión y servidor de datos ficticios para revisión visual.
@@ -38,7 +39,7 @@ El backend usa SQLite y archivos locales en desarrollo, con configuración para 
 
 ## 2. Tecnologías y estructura
 
-- React 18.3, Vite 6, Tailwind CSS 4 y Lucide React según `package.json`.
+- React 18.3, Vite 6, Tailwind CSS 4, Lucide React y `<model-viewer>`/Three.js según `package.json`.
 - JavaScript/JSX, sin TypeScript.
 - Hooks de React; sin React Router ni store externo. `section`, `view` e IDs seleccionados controlan la navegación en memoria.
 - Fetch con cookies y CSRF; no JWT ni Axios.
@@ -50,7 +51,7 @@ src/
   App.jsx        Sesión, estado, navegación, CRUD y componentes de pantalla
   api.js         URL base, fetch, CSRF, multipart y acceso a endpoints
   styles.css     Tailwind y estilos compartidos
-  components/    AppHeader y FileUpload reutilizables
+  components/    AppHeader, FileUpload y visor GLB de carga diferida
   lib/forms.js   Codificación JSON/multipart, errores, búsqueda y orden
 tests/           Pruebas Node y API ficticia para revisión local
 index.html
@@ -79,7 +80,9 @@ El registro público permite crear cuentas docentes en cualquier momento y la cu
 5. Ver, abrir y solicitar descarga del QR generado por Django.
 6. Eliminar capítulos o libros; el backend elimina las escenas del libro en cascada.
 
-Los indicadores son conteos del catálogo, no estadísticas de aprendizaje. No se genera voz, se convierten modelos ni se producen QR en el navegador. `prefab_key` referencia un prefab local en Unity; un GLB se descarga dinámicamente. No hay visor 3D integrado en el panel.
+Los indicadores son conteos del catálogo, no estadísticas de aprendizaje. No se genera voz, se convierten modelos ni se producen QR en el navegador. `prefab_key` referencia un prefab local en Unity; un GLB se descarga dinámicamente. Al elegir un GLB, el formulario lo muestra con giro y zoom **antes de guardar**. La ficha de un capítulo ya guardado ofrece «Vista 3D» bajo demanda; si el archivo incluye clips, se pueden seleccionar, reproducir y pausar. El visor se carga solo al abrir una vista 3D para evitar que pese en la navegación inicial. Si falla el archivo o el acceso a su URL, aparece un mensaje en el propio visor.
+
+Esta vista permite confirmar geometría, materiales y animaciones del archivo; no simula el seguimiento del QR ni los centímetros/posición sobre la página. Eso se comprueba en la vista docente de Unity con el teléfono. Los modelos que existen solo como prefab local de Unity no se pueden abrir en el navegador; para ellos hay que subir también un GLB.
 
 El formulario permite indicar el ancho real del QR impreso (2–30 cm), la dimensión máxima deseada del modelo (1–50 cm), desplazamientos X/Y/Z (−50 a 50 cm) y giro (−180 a 180°). Los valores iniciales son 6, 8, 0, 0.5, 0 y 0. El ancho del QR define la escala física del seguimiento de imagen; la dimensión del modelo se normaliza aparte, de modo que un QR más grande no agranda automáticamente el objeto. El docente puede afinar la posición mirando la página con la vista docente de la app Android y guardar desde allí. Si el QR ya forma parte de la biblioteca de imágenes estática de Unity, su ancho debe actualizarse también en ese asset.
 
@@ -184,13 +187,13 @@ La suite usa `node:test` (Node 22.12+ recomendado), sin dependencias de test adi
 Recorrido manual:
 1. Entrar, recargar, comprobar persistencia de sesión y cerrar sesión.
 2. Crear/editar un libro, portada y publicación.
-3. Crear capítulo con texto, clave de prefab o GLB válido, audio opcional y medidas AR del QR impreso.
+3. Crear capítulo con texto, clave de prefab o GLB válido, audio opcional y medidas AR del QR impreso. Seleccionar un GLB y comprobar la vista previa, giro, zoom y sus clips antes de guardar.
 4. Abrir QR, comprobar `/api/unity/scenes/<qr_code>/` y las URLs de archivos.
 5. Despublicar el libro y comprobar 404 en esa API.
 6. Crear/editar estudiante, asignar varios libros y retirar todas las asignaciones.
 7. Probar el QR con Unity en Android para validar modelo, audio y seguimiento.
 
-Validado en esta revisión: seis pruebas Node, ESLint y compilación de producción. La revisión visual local con datos ficticios comprobó biblioteca, búsqueda sin resultados y edición de estudiante vaciando aula/asignaciones. Se aplicaron actualizaciones compatibles del lockfile; npm audit reportó cero vulnerabilidades tras la corrección. Falta validar con Django real, subidas persistentes, sesión entre dominios y Android.
+Validado en esta revisión: seis pruebas Node, ESLint y compilación de producción. La revisión visual local con datos ficticios y un GLB generado para prueba comprobó que el modelo aparece antes de guardar y que su clip se puede reproducir; la prueba anterior también cubrió biblioteca, búsqueda sin resultados y edición de estudiante vaciando aula/asignaciones. `npm install` reportó cero vulnerabilidades. Falta validar con Django real, subidas persistentes, URLs de storage entre dominios y Android.
 
 Para revisar la UI sin datos reales, ejecutar en dos terminales:
 

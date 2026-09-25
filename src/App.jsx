@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, useRef, useId, cloneElement } from 'react';
 import AppHeader from './components/AppHeader';
 import FileUpload from './components/FileUpload';
+import GlbPreviewLazy from './components/GlbPreviewLazy';
 import { normalizeSearch, nextChapterOrder } from './lib/forms';
 import {
   AlertCircle,
@@ -1183,6 +1184,8 @@ function BookDetailView({
   onEditBook,
   onEditChapter,
 }) {
+  const [previewChapterId, setPreviewChapterId] = useState(null);
+
   return (
     <section className="mt-6">
       <button className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500" onClick={onBack} type="button">
@@ -1238,6 +1241,8 @@ function BookDetailView({
                 key={chapter.id}
                 onDelete={() => onDeleteChapter(chapter.id)}
                 onEdit={() => onEditChapter(chapter)}
+                previewOpen={previewChapterId === chapter.id}
+                onTogglePreview={() => setPreviewChapterId((current) => current === chapter.id ? null : chapter.id)}
               />
             ))
           ) : (
@@ -1255,7 +1260,7 @@ function BookDetailView({
   );
 }
 
-function ChapterRow({ chapter, onDelete, onEdit }) {
+function ChapterRow({ chapter, onDelete, onEdit, previewOpen, onTogglePreview }) {
   return (
     <article className="p-4">
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_190px_auto] lg:items-start">
@@ -1273,7 +1278,21 @@ function ChapterRow({ chapter, onDelete, onEdit }) {
             <ResourcePill icon={Box} text={chapter.glb_model_url ? 'Modelo GLB disponible' : 'Sin GLB'} />
           </div>
           {chapter.audio_url && <audio className="mt-4 w-full max-w-md" controls preload="none" src={chapter.audio_url}>Tu navegador no admite audio.</audio>}
-          {chapter.glb_model_url && <a className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-teal-700 underline" href={chapter.glb_model_url} target="_blank" rel="noreferrer"><ExternalLink size={15} />Abrir modelo GLB</a>}
+          {chapter.glb_model_url && (
+            <div className="mt-3 flex flex-wrap items-center gap-4">
+              <button
+                className="btn-secondary"
+                type="button"
+                aria-expanded={previewOpen}
+                aria-controls={`chapter-preview-${chapter.id}`}
+                onClick={onTogglePreview}
+              >
+                <Eye size={17} aria-hidden="true" />
+                {previewOpen ? 'Cerrar vista 3D' : 'Vista 3D'}
+              </button>
+              <a className="inline-flex items-center gap-1 text-sm font-semibold text-teal-700 underline" href={chapter.glb_model_url} target="_blank" rel="noreferrer"><ExternalLink size={15} />Abrir archivo GLB</a>
+            </div>
+          )}
           <p className="mt-3 text-xs leading-5 text-slate-600">
             AR: modelo {chapter.ar_model_size_cm ?? 8} cm · QR impreso {chapter.ar_marker_width_cm ?? 6} cm · giro {chapter.ar_yaw_degrees ?? 0}°. Ajuste final: app móvil → Docente → escanear QR.
           </p>
@@ -1288,6 +1307,11 @@ function ChapterRow({ chapter, onDelete, onEdit }) {
           </IconButton>
         </div>
       </div>
+      {previewOpen && chapter.glb_model_url && (
+        <div className="mt-4 max-w-3xl" id={`chapter-preview-${chapter.id}`}>
+          <GlbPreviewLazy src={chapter.glb_model_url} label={chapter.title || 'capítulo'} />
+        </div>
+      )}
     </article>
   );
 }
@@ -1397,7 +1421,7 @@ function ChapterFormView({ book, chapter, form, isSaving, onBack, onChange, onSu
               />
             </Field>
             <FileUpload label="Narración de audio" accept="audio/*" kind="audio" value={form.audio} currentUrl={chapter?.audio_url} onChange={(file) => onChange('audio', file)} />
-            <FileUpload label="Modelo 3D · GLB" accept=".glb,model/gltf-binary" kind="model" value={form.glb_model} currentUrl={chapter?.glb_model_url} onChange={(file) => onChange('glb_model', file)} />
+            <FileUpload label="Modelo 3D · GLB" accept=".glb,model/gltf-binary" kind="model" value={form.glb_model} currentUrl={form.remove_glb_model ? null : chapter?.glb_model_url} onChange={(file) => onChange('glb_model', file)} />
             <p className="text-xs leading-5 text-slate-600">Para animaciones, sube un GLB con clips como Idle y Walk. Un OBJ estático solo puede desplazarse como un bloque.</p>
             {chapter?.glb_model_url && !form.glb_model && <label className="flex items-center gap-2 text-sm text-rose-700"><input type="checkbox" checked={Boolean(form.remove_glb_model)} onChange={(event) => onChange('remove_glb_model', event.target.checked)} />Retirar el modelo actual al guardar</label>}
           </div>
