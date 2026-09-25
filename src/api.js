@@ -3,7 +3,7 @@ import { encodePayload, formatApiError } from './lib/forms.js';
 const API_BASE_URL = (import.meta.env?.VITE_API_BASE_URL ?? '/api').replace(/\/$/, '');
 let csrfToken = null;
 
-async function request(path, options = {}) {
+async function request(path, options = {}, responseType = 'json') {
   const isFormData = options.body instanceof FormData;
   const method = options.method ?? 'GET';
   const headers = isFormData ? {} : { 'Content-Type': 'application/json' };
@@ -42,6 +42,8 @@ async function request(path, options = {}) {
   }
 
   if (response.status === 204) return null;
+
+  if (responseType === 'blob') return response.blob();
 
   const body = await response.json();
   rememberCsrfToken(body);
@@ -111,6 +113,10 @@ export function deleteBook(id) {
 
 export function listScenes() {
   return request('/teacher/scenes/');
+}
+
+export function downloadSceneQrPdf(id) {
+  return request(`/teacher/scenes/${id}/printable-qr/`, {}, 'blob');
 }
 
 export function createScene(data) {

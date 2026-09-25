@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getTeacherSession, updateStudent, updateBook, updateScene, deleteBook, listBooks } from '../src/api.js';
+import { getTeacherSession, updateStudent, updateBook, updateScene, deleteBook, listBooks, downloadSceneQrPdf } from '../src/api.js';
 
 test('API contract: CSRF, PUT with photo and empty assignments, errors, 204 and network failure', async (t) => {
   t.mock.method(globalThis, 'fetch', async () => new globalThis.Response(JSON.stringify({ csrf_token: 'test-csrf', is_authenticated: true })));
@@ -29,4 +29,22 @@ test('API contract: CSRF, PUT with photo and empty assignments, errors, 204 and 
   await assert.rejects(updateStudent(1, {}), (error) => error.status === 400 && error.message === 'Nombre: Requerido.');
   globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
   await assert.rejects(listBooks(), /No se pudo conectar/);
+});
+
+test('QR PDF download requests authenticated binary content', async (t) => {
+  let call;
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    call = { url, ...options };
+    return new globalThis.Response(new Uint8Array([37, 80, 68, 70]), {
+      headers: { 'Content-Type': 'application/pdf' },
+    });
+  });
+  globalThis.document = { cookie: '' };
+  t.after(() => { delete globalThis.document; });
+
+  const pdf = await downloadSceneQrPdf(12);
+
+  assert.equal(call.url, '/api/teacher/scenes/12/printable-qr/');
+  assert.equal(call.credentials, 'include');
+  assert.deepEqual([...new Uint8Array(await pdf.arrayBuffer())], [37, 80, 68, 70]);
 });

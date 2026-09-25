@@ -34,6 +34,7 @@ import {
   deleteBook,
   deleteScene,
   deleteStudent,
+  downloadSceneQrPdf,
   getTeacherSession,
   listBooks,
   listScenes,
@@ -1695,6 +1696,29 @@ function ResourcePill({ icon: Icon, text }) {
 }
 
 function SceneQrCard({ chapter }) {
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [pdfError, setPdfError] = useState('');
+
+  async function handlePdfDownload() {
+    setIsDownloading(true);
+    setPdfError('');
+    try {
+      const pdf = await downloadSceneQrPdf(chapter.id);
+      const url = URL.createObjectURL(pdf);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${chapter.qr_code}-qr.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      setPdfError(error.message || 'No se pudo descargar el PDF. Inténtalo otra vez.');
+    } finally {
+      setIsDownloading(false);
+    }
+  }
+
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
       <div className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500">
@@ -1715,7 +1739,17 @@ function SceneQrCard({ chapter }) {
       <p className="mt-2 break-all rounded-md bg-white px-2 py-1 text-xs font-medium text-slate-700">
         {chapter.qr_code}
       </p>
-      <p className="mt-2 text-xs leading-5 text-slate-600">Imprime este QR con {chapter.ar_marker_width_cm ?? 6} cm de ancho real. El tamaño con que se muestra aquí no sirve como referencia de impresión.</p>
+      <p className="mt-2 text-xs leading-5 text-slate-600">El PDF coloca el QR a {chapter.ar_marker_width_cm ?? 6} cm reales. Imprímelo al 100 %, sin «ajustar a página». La vista de arriba no indica su tamaño de impresión.</p>
+      <button
+        className="btn-primary mt-3 w-full justify-center"
+        disabled={isDownloading || !chapter.qr_code}
+        onClick={handlePdfDownload}
+        type="button"
+      >
+        {isDownloading ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />}
+        {isDownloading ? 'Preparando PDF…' : 'Descargar PDF para imprimir'}
+      </button>
+      {pdfError && <p className="mt-2 text-xs text-red-700" role="alert">{pdfError}</p>}
       {chapter.qr_image_url && (
         <div className="mt-3 grid grid-cols-2 gap-2">
           <a
@@ -1725,7 +1759,7 @@ function SceneQrCard({ chapter }) {
             target="_blank"
           >
             <ExternalLink size={14} />
-            Abrir
+            Abrir PNG
           </a>
           <a
             className="inline-flex items-center justify-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-100"
@@ -1733,7 +1767,7 @@ function SceneQrCard({ chapter }) {
             href={chapter.qr_image_url}
           >
             <Download size={14} />
-            Bajar
+            Descargar PNG
           </a>
         </div>
       )}

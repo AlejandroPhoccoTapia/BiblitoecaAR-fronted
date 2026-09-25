@@ -15,7 +15,7 @@ Documentación actualizada el **25 de septiembre de 2026**. Es un MVP; las compr
 - Vista previa interactiva del GLB nuevo antes de guardar y del modelo ya guardado desde la ficha del capítulo, con controles para clips de animación incluidos.
 - Avisos de éxito, errores por campo, timeout de red y carga parcial del catálogo.
 - Protección frente a envíos duplicados, confirmación al eliminar capítulos y aviso al salir con cambios sin guardar.
-- Seis pruebas de regresión y servidor de datos ficticios para revisión visual.
+- Siete pruebas de regresión y servidor de datos ficticios para revisión visual.
 
 Se mantienen commits separados por hitos (API, dependencias, interfaz y documentación) para identificar cambios y poder revertirlos. Evitar agrupar futuras mejoras independientes en un único commit.
 
@@ -77,7 +77,7 @@ El registro público permite crear cuentas docentes en cualquier momento y la cu
 2. Crear y editar título, descripción, portada y estado publicado/borrador.
 3. Abrir un libro y listar capítulos por orden.
 4. Crear/editar capítulo: título, orden, texto, `prefab_key` local o `.glb`, audio y ajustes físicos AR.
-5. Ver, abrir y solicitar descarga del QR generado por Django.
+5. Ver el QR generado por Django y descargar una hoja PDF lista para imprimir al tamaño físico configurado.
 6. Eliminar capítulos o libros; el backend elimina las escenas del libro en cascada.
 
 Los indicadores son conteos del catálogo, no estadísticas de aprendizaje. No se genera voz, se convierten modelos ni se producen QR en el navegador. `prefab_key` referencia un prefab local en Unity; un GLB se descarga dinámicamente. Al elegir un GLB, el formulario lo muestra con giro y zoom **antes de guardar**. La ficha de un capítulo ya guardado ofrece «Vista 3D» bajo demanda; si el archivo incluye clips, se pueden seleccionar, reproducir y pausar. El visor se carga solo al abrir una vista 3D para evitar que pese en la navegación inicial. Si falla el archivo o el acceso a su URL, aparece un mensaje en el propio visor.
@@ -88,7 +88,7 @@ El formulario permite indicar el ancho real del QR impreso (2–30 cm), la dimen
 
 Para movimiento real, subir un GLB con clips de animación. En la vista previa del formulario se puede reproducir cada clip y elegir **«Al tocar la pantalla»**; el nombre se guarda en `tap_animation_name` y Unity reproduce ese clip al tocar cualquier zona libre de la cámara, sin desplazamiento adicional. Los botones y paneles no activan la animación. La opción automática mantiene el comportamiento anterior: requiere tocar el modelo, busca `Walk`/`Caminar` y lo desplaza 2,5 cm. `Idle`/`Quieto` sigue reproduciéndose cuando el modelo espera. Si se reemplaza o retira el GLB, la selección se borra para evitar que apunte a un clip anterior. Un OBJ o prefab estático solo se desplaza como un cuerpo. El panel no genera huesos ni animaciones.
 
-La descarga de QR usa el atributo HTML `download`; con archivos en otro origen su comportamiento depende del navegador y del servidor.
+En la ficha de un capítulo guardado, «Descargar PDF para imprimir» pide al backend una hoja con el QR vectorial a la medida guardada, una línea de comprobación de 5 cm y la indicación de imprimir al 100 % sin ajustar a página. Para QR de más de 17 cm se usa A3; para más de 25 cm, A2. La descarga PDF usa la sesión docente y funciona aunque el archivo PNG esté alojado en otro origen. Los enlaces «Abrir PNG» y «Descargar PNG» conservan el archivo original para usos manuales; la descarga del PNG usa el atributo HTML `download` y, con archivos en otro origen, su comportamiento depende del navegador y del servidor.
 
 ### Estudiantes
 
@@ -184,18 +184,18 @@ npm run build
 npm run preview
 ```
 
-La suite usa `node:test` (Node 22.12+ recomendado), sin dependencias de test adicionales. Cubre campos vacíos, booleanos, listas multipart, método PUT, CSRF, retirada de GLB, errores HTTP/red, búsqueda con tildes y orden de capítulos con huecos. Los fetch son simulados: estas pruebas no acreditan persistencia en Django. Lint/build no validan permisos, cookies, subidas ni AR. `preview` sirve el build; no asumir que reproduce el proxy de desarrollo. Construir con la URL de API adecuada y permitir el origen usado para esa prueba.
+La suite usa `node:test` (Node 22.12+ recomendado), sin dependencias de test adicionales. Cubre campos vacíos, booleanos, listas multipart, método PUT, CSRF, retirada de GLB, descarga binaria del PDF, errores HTTP/red, búsqueda con tildes y orden de capítulos con huecos. Los fetch son simulados: estas pruebas no acreditan persistencia en Django. Lint/build no validan permisos, cookies, subidas ni AR. `preview` sirve el build; no asumir que reproduce el proxy de desarrollo. Construir con la URL de API adecuada y permitir el origen usado para esa prueba.
 
 Recorrido manual:
 1. Entrar, recargar, comprobar persistencia de sesión y cerrar sesión.
 2. Crear/editar un libro, portada y publicación.
 3. Crear capítulo con texto, clave de prefab o GLB válido, audio opcional y medidas AR del QR impreso. Seleccionar un GLB y comprobar la vista previa, giro, zoom y sus clips antes de guardar.
-4. Abrir QR, comprobar `/api/unity/scenes/<qr_code>/` y las URLs de archivos.
+4. Descargar el PDF del QR, imprimir al 100 % y comprobar la línea de 5 cm antes de probar `/api/unity/scenes/<qr_code>/` y las URLs de archivos.
 5. Despublicar el libro y comprobar 404 en esa API.
 6. Crear/editar estudiante, asignar varios libros y retirar todas las asignaciones.
 7. Probar el QR con Unity en Android para validar modelo, audio y seguimiento.
 
-Validado en esta revisión: seis pruebas Node, ESLint y compilación de producción. La revisión visual local con datos ficticios y un GLB generado para prueba comprobó que el modelo aparece antes de guardar y que su clip se puede reproducir; la prueba anterior también cubrió biblioteca, búsqueda sin resultados y edición de estudiante vaciando aula/asignaciones. `npm install` reportó cero vulnerabilidades. Falta validar con Django real, subidas persistentes, URLs de storage entre dominios y Android.
+Validado en esta revisión: siete pruebas Node, ESLint y compilación de producción. La revisión visual local con datos ficticios y un GLB generado para prueba comprobó que el modelo aparece antes de guardar y que su clip se puede reproducir; la prueba anterior también cubrió biblioteca, búsqueda sin resultados y edición de estudiante vaciando aula/asignaciones. La descarga PDF tiene prueba de contrato del frontend y prueba del endpoint en Django; aún falta comprobarla en el despliegue real. `npm install` reportó cero vulnerabilidades. Falta validar subidas persistentes, URLs de storage entre dominios y Android.
 
 Para revisar la UI sin datos reales, ejecutar en dos terminales:
 
