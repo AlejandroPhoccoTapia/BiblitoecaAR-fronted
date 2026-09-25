@@ -1321,7 +1321,9 @@ function ChapterRow({ chapter, onDelete, onEdit, previewOpen, onTogglePreview })
           </p>
           {chapter.glb_model_url && (
             <p className="mt-1 text-xs font-medium text-teal-800">
-              Al tocar el modelo: {chapter.tap_animation_name || 'Automática (Walk)'}
+              {chapter.tap_animation_name
+                ? `Toque en pantalla: ${chapter.tap_animation_name}`
+                : 'Toque en el modelo: automática (Walk)'}
             </p>
           )}
         </div>
@@ -1461,13 +1463,13 @@ function ChapterFormView({ book, chapter, form, isSaving, onBack, onChange, onSu
             </Field>
             <FileUpload label="Narración de audio" accept="audio/*" kind="audio" value={form.audio} currentUrl={chapter?.audio_url} onChange={(file) => onChange('audio', file)} />
             <FileUpload label="Modelo 3D · GLB" accept=".glb,model/gltf-binary" kind="model" value={form.glb_model} currentUrl={form.remove_glb_model ? null : chapter?.glb_model_url} onChange={(file) => onChange('glb_model', file)} />
-            <p className="text-xs leading-5 text-slate-600">Sube un GLB con animaciones incluidas. Después podrás elegir cuál se reproduce al tocar el modelo en la app.</p>
+            <p className="text-xs leading-5 text-slate-600">Sube un GLB con animaciones incluidas. El clip que elijas se reproducirá al tocar una zona libre de la pantalla en la app.</p>
             {chapter?.glb_model_url && !form.glb_model && <label className="flex items-center gap-2 text-sm text-rose-700"><input type="checkbox" checked={Boolean(form.remove_glb_model)} onChange={(event) => onChange('remove_glb_model', event.target.checked)} />Retirar el modelo actual al guardar</label>}
           </div>
 
           {previewUrl && (
             <div className="md:col-span-2">
-              <h3 className="mb-2 font-semibold text-slate-900">Vista previa y animación al tocar</h3>
+              <h3 className="mb-2 font-semibold text-slate-900">Vista previa y animación al tocar la pantalla</h3>
               <GlbPreviewLazy
                 src={previewUrl}
                 label={form.title || 'capítulo'}
