@@ -10,7 +10,7 @@ const scenes = [
   { id: 1, book: 1, title: 'Una hormiga muy curiosa', order: 1, text: 'En el bosque, cada pequeño ser tiene una gran historia.', prefab_key: 'Hormiga', qr_code: 'demo-hormiga' },
   { id: 2, book: 1, title: 'La vida entre los árboles', order: 4, text: 'Las hojas esconden nuevos descubrimientos.', prefab_key: 'Bosque', qr_code: 'demo-bosque' },
 ];
-const students = [{ id: 1, full_name: 'Estudiante de demostración', classroom: 'Aula de prueba', assigned_books: [1, 2], assigned_books_detail: [], is_active: true, has_face_signature: false }];
+const students = [{ id: 1, full_name: 'Estudiante de demostración', classroom: 'Aula de prueba', assigned_books: [1, 2], assigned_books_detail: [], is_active: true, has_face_signature: false, has_access_code: false }];
 let authenticated = true;
 http.createServer(async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
@@ -18,6 +18,14 @@ http.createServer(async (req, res) => {
   if (req.url === '/api/auth/logout/') { authenticated = false; return reply({ is_authenticated: false, csrf_token: 'demo' }); }
   if (req.url === '/api/auth/login/') authenticated = true;
   if (req.url?.startsWith('/api/auth/')) return reply({ is_authenticated: authenticated, csrf_token: 'demo', user: { username: 'demo', first_name: 'Docente demo', is_staff: true } });
+  const resetMatch = req.url?.match(/^\/api\/teacher\/students\/(\d+)\/reset-access-code\/$/);
+  if (resetMatch) {
+    if (!authenticated) return reply({ detail: 'Inicia sesión.' }, 403);
+    const student = students.find((item) => item.id === Number(resetMatch[1]));
+    if (!student) return reply({ detail: 'Estudiante no encontrado.' }, 404);
+    student.has_access_code = true;
+    return reply({ access_code: 'DEMOACCESS' });
+  }
   const match = req.url?.match(/^\/api\/teacher\/(books|scenes|students)\/(\d+)?\/?$/);
   if (!match) return reply({ detail: 'Ruta de demostración no disponible.' }, 404);
   if (!authenticated) return reply({ detail: 'Inicia sesión.' }, 403);
@@ -31,5 +39,9 @@ http.createServer(async (req, res) => {
   let row = collection.find((item) => item.id === id);
   if (!row) { row = { id: Math.max(0, ...collection.map((item) => item.id)) + 1 }; collection.push(row); }
   Object.assign(row, data, { updated_at: new Date().toISOString() });
+  if (match[1] === 'students' && !id) {
+    row.has_access_code = true;
+    return reply({ ...row, access_code: 'DEMOACCESS' });
+  }
   reply(row);
 }).listen(8000, '127.0.0.1', () => globalThis.console.log('API DEMO local :8000. Datos ficticios en memoria; no valida autenticación real ni subidas.'));

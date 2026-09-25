@@ -85,9 +85,9 @@ La descarga de QR usa el atributo HTML `download`; con archivos en otro origen s
 
 ### Estudiantes
 
-Se pueden listar y buscar por nombre/aula, crear, editar, activar/desactivar, subir una fotografía y seleccionar libros. El backend calcula la firma de imagen cuando recibe una foto mediante la API.
+Se pueden listar y buscar por nombre/aula, crear, editar, activar/desactivar, subir una fotografía y seleccionar libros. El backend calcula la firma de imagen cuando recibe una foto mediante la API. Al crear un perfil, el backend devuelve un código personal que el panel muestra una sola vez. Desde la tarjeta del estudiante el docente puede generar o restablecer el código; hacerlo invalida el código anterior y sus sesiones abiertas. Un indicador muestra si el perfil ya tiene código, pero el código existente no se puede recuperar.
 
-No hay captura de cámara ni login facial en este panel. `StudentProfile` es un perfil, no una cuenta Django con contraseña. El endpoint facial existe en Django, pero Unity aún no lo consume. Asignar libros no restringe el endpoint público de Unity. La asignación múltiple admite selección individual, selección de todos y retirada de todos.
+No hay captura de cámara ni login facial en el panel docente: ese acceso corresponde a la app móvil. `StudentProfile` es un perfil separado de las cuentas Django de docentes. Asignar libros organiza «Mis libros» en el móvil; no restringe otros libros publicados ni el endpoint Unity heredado. La asignación múltiple admite selección individual, selección de todos y retirada de todos.
 
 ## 4. Desarrollo local
 
@@ -136,6 +136,7 @@ Las variables `VITE_*` se incorporan al código del navegador. No colocar claves
 | Libros | `/teacher/books/`, `/teacher/books/<id>/`. |
 | Capítulos | `/teacher/scenes/`, `/teacher/scenes/<id>/`. |
 | Estudiantes | `/teacher/students/`, `/teacher/students/<id>/`. |
+| Código del estudiante | `POST /teacher/students/<id>/reset-access-code/`. |
 
 Para libros y capítulos se usa PATCH; el editor de estudiantes envía el perfil completo mediante PUT. Sin archivos se usa JSON, conservando cadenas vacías y listas vacías. Con archivos se usa multipart y se repite `assigned_books` por cada ID. PUT permite a DRF interpretar una lista multipart ausente como vacía al subir una foto y quitar todas las asignaciones simultáneamente. No reutilizar `updateStudent()` para parches parciales sin adaptar este contrato.
 
@@ -203,12 +204,12 @@ La API ficticia escucha exclusivamente en 127.0.0.1:8000 y guarda datos en memor
 | Asignación múltiple | Corregida en JSON/multipart; falta comprobar el recorrido con archivos contra Django real. |
 | Vaciar campos | Se conservan cadenas vacías y listas; null/undefined se omiten para conservar archivos actuales. |
 | Retirar archivos | Se pueden sustituir y retirar modelos GLB. No hay retirada general de portada/audio/foto. |
-| Flujo infantil | No hay login facial ni autorización por estudiante en este panel. Unity tampoco integra aún la identificación. |
+| Flujo infantil | El panel administra perfiles, fotos y códigos; el acceso del estudiante ocurre en Unity. |
 | Fotos | El backend puede guardarlas en el bucket público de media; no existe flujo privado específico. |
 | Reconocimiento | El backend utiliza comparación LBP experimental, no autenticación biométrica validada. |
 | Carga inicial | Se descarga todo el catálogo; Promise.allSettled conserva los recursos que sí cargan y muestra errores de los fallidos. Sin paginación. |
 | Organización | Cabecera, archivos y utilidades extraídos; App.jsx todavía concentra el resto. No hay rutas por pantalla ni sincronización en tiempo real. |
-| Seguimiento educativo | No hay progreso, evaluaciones ni analítica de aprendizaje persistida. |
+| Seguimiento educativo | El backend guarda el último capítulo abierto y los terminados; el panel todavía no muestra informes de avance. |
 
 Diagnóstico: 403 al guardar requiere revisar sesión, CSRF, orígenes y cookies; error de red, URL base y Django; 400 en estudiantes, formato de `assigned_books`; QR sin recursos, JSON Unity y URLs del storage.
 

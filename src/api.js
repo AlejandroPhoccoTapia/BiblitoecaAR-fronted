@@ -158,3 +158,9 @@ export function deleteStudent(id) {
     method: 'DELETE',
   });
 }
+
+export function resetStudentAccessCode(id) {
+  return request(`/teacher/students/${id}/reset-access-code/`, {
+    method: 'POST',
+  });
+}

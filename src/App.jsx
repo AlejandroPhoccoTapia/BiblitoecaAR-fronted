@@ -15,6 +15,7 @@ import {
   Eye,
   FileAudio,
   Library,
+  KeyRound,
   Loader2,
   Plus,
   QrCode,
@@ -39,6 +40,7 @@ import {
   loginTeacher,
   logoutTeacher,
   registerTeacher,
+  resetStudentAccessCode,
   updateBook,
   updateScene,
   updateStudent,
@@ -108,6 +110,8 @@ export default function App() {
   const [isSavingBook, setIsSavingBook] = useState(false);
   const [isSavingChapter, setIsSavingChapter] = useState(false);
   const [isSavingStudent, setIsSavingStudent] = useState(false);
+  const [isResettingCode, setIsResettingCode] = useState(false);
+  const [issuedAccess, setIssuedAccess] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [notice, setNotice] = useState('');
   const [dirty, setDirty] = useState(false);
@@ -117,7 +121,7 @@ export default function App() {
   const [bookStatus, setBookStatus] = useState('all');
   const [sortOrder, setSortOrder] = useState('title');
   const [studentStatus, setStudentStatus] = useState('all');
-  const isBusy = isSavingBook || isSavingChapter || isSavingStudent || isDeleting || isLoggingOut;
+  const isBusy = isSavingBook || isSavingChapter || isSavingStudent || isResettingCode || isDeleting || isLoggingOut;
   const errorRef = useRef(null);
   useEffect(() => { if (errorMessage) errorRef.current?.focus(); }, [errorMessage]);
   useEffect(() => {
@@ -476,7 +480,9 @@ export default function App() {
         );
       } else {
         const created = await createStudent(payload);
-        setStudents((current) => [created, ...current]);
+        const { access_code: accessCode, ...studentRecord } = created;
+        setStudents((current) => [studentRecord, ...current]);
+        setIssuedAccess({ name: created.full_name, code: accessCode });
       }
 
       setDirty(false);
@@ -489,6 +495,29 @@ export default function App() {
     } finally {
       mutationLock.current = false;
       setIsSavingStudent(false);
+    }
+  }
+
+  async function handleResetStudentCode(student) {
+    if (mutationLock.current) return;
+    if (student.has_access_code && !window.confirm(
+      `¿Generar un código nuevo para ${student.full_name}? El código anterior y sus sesiones dejarán de funcionar.`,
+    )) return;
+
+    mutationLock.current = true;
+    setIsResettingCode(true);
+    setErrorMessage('');
+    try {
+      const result = await resetStudentAccessCode(student.id);
+      setStudents((current) => current.map((item) => (
+        item.id === student.id ? { ...item, has_access_code: true } : item
+      )));
+      setIssuedAccess({ name: student.full_name, code: result.access_code });
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      mutationLock.current = false;
+      setIsResettingCode(false);
     }
   }
 
@@ -635,6 +664,7 @@ export default function App() {
         )}
 
         {notice && <div role="status" className="mt-4 flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-900"><Check size={18} /><span className="flex-1">{notice}</span><button type="button" aria-label="Cerrar aviso" onClick={() => setNotice('')}>×</button></div>}
+        {issuedAccess && <AccessCodeDialog issuedAccess={issuedAccess} onClose={() => setIssuedAccess(null)} />}
         <fieldset id="workspace" disabled={isBusy || isLoading} aria-busy={isBusy || isLoading} className="min-w-0" onChangeCapture={(event) => { if (event.target.closest('form')) setDirty(true); }}>
         {view === 'books' && (
           <BooksView
@@ -696,6 +726,7 @@ export default function App() {
             onCreateStudent={openCreateStudent}
             onDeleteStudent={handleDeleteStudent}
             onEditStudent={openEditStudent}
+            onResetStudentCode={handleResetStudentCode}
             searchTerm={studentSearchTerm}
             setSearchTerm={setStudentSearchTerm}
             students={filteredStudents}
@@ -914,12 +945,44 @@ function BooksView({
   );
 }
 
+function AccessCodeDialog({ issuedAccess, onClose }) {
+  const closeRef = useRef(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => { closeRef.current?.focus(); }, []);
+
+  async function copyCode() {
+    try {
+      await window.navigator.clipboard.writeText(issuedAccess.code);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+      <section aria-labelledby="access-code-title" aria-modal="true" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" onKeyDown={(event) => { if (event.key === 'Escape') onClose(); }} role="dialog">
+        <div className="flex size-12 items-center justify-center rounded-xl bg-teal-50 text-teal-700"><KeyRound size={23} /></div>
+        <h2 className="mt-4 text-2xl font-bold" id="access-code-title">Código de acceso de {issuedAccess.name}</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">Entrégalo al estudiante. Se muestra solo ahora; si lo pierde, puedes generar otro desde su perfil.</p>
+        <p className="mt-5 select-all rounded-xl border border-teal-200 bg-teal-50 px-4 py-4 text-center font-mono text-2xl font-bold tracking-[0.2em] text-teal-900" data-testid="student-access-code">{issuedAccess.code}</p>
+        <div className="mt-5 flex gap-3">
+          <button className="btn-secondary flex-1 justify-center" onClick={copyCode} type="button">{copied ? 'Copiado' : 'Copiar código'}</button>
+          <button className="btn-primary flex-1 justify-center" onClick={onClose} ref={closeRef} type="button">Entendido</button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function StudentsView({
   books,
   isLoading,
   onCreateStudent,
   onDeleteStudent,
   onEditStudent,
+  onResetStudentCode,
   searchTerm,
   setSearchTerm,
   students,
@@ -957,6 +1020,7 @@ function StudentsView({
               key={student.id}
               onDelete={() => onDeleteStudent(student)}
               onEdit={() => onEditStudent(student)}
+              onResetCode={() => onResetStudentCode(student)}
               student={student}
             />
           ))}
@@ -974,7 +1038,7 @@ function StudentsView({
   );
 }
 
-function StudentCard({ books, student, onDelete, onEdit }) {
+function StudentCard({ books, student, onDelete, onEdit, onResetCode }) {
   const assignedBooks = books.filter((book) => student.assigned_books?.includes(book.id));
 
   return (
@@ -999,6 +1063,7 @@ function StudentCard({ books, student, onDelete, onEdit }) {
           </div>
           <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
             <ResourcePill icon={Eye} text={student.has_face_signature ? 'Rostro registrado' : 'Sin rostro'} />
+            <ResourcePill icon={KeyRound} text={student.has_access_code ? 'Código listo' : 'Sin código'} />
             <ResourcePill icon={BookOpen} text={`${assignedBooks.length} libros`} />
           </div>
         </div>
@@ -1012,6 +1077,10 @@ function StudentCard({ books, student, onDelete, onEdit }) {
       </div>
 
       <div className="mt-4 flex gap-2">
+        <button className="btn-secondary flex-1 justify-center" onClick={onResetCode} type="button">
+          <KeyRound size={17} />
+          {student.has_access_code ? 'Nuevo código' : 'Crear código'}
+        </button>
         <button className="btn-secondary flex-1 justify-center" onClick={onEdit} type="button">
           <Edit3 size={17} />
           Editar
