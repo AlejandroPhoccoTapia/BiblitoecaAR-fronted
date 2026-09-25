@@ -94,7 +94,7 @@ La descarga de QR usa el atributo HTML `download`; con archivos en otro origen s
 
 Se pueden listar y buscar por nombre/aula, crear, editar, activar/desactivar, subir una fotografía y seleccionar libros. El backend calcula la firma de imagen cuando recibe una foto mediante la API. Al crear un perfil, el backend devuelve un código personal que el panel muestra una sola vez. Desde la tarjeta del estudiante el docente puede generar o restablecer el código; hacerlo invalida el código anterior y sus sesiones abiertas. Un indicador muestra si el perfil ya tiene código, pero el código existente no se puede recuperar.
 
-No hay captura de cámara ni login facial en el panel docente: ese acceso corresponde a la app móvil. `StudentProfile` es un perfil separado de las cuentas Django de docentes. Asignar libros organiza «Mis libros» en el móvil; no restringe otros libros publicados ni el endpoint Unity heredado. La asignación múltiple admite selección individual, selección de todos y retirada de todos.
+No hay captura de cámara ni login facial en el panel docente: ese acceso corresponde a la app móvil. `StudentProfile` es un perfil separado de las cuentas Django de docentes. Asignar libros organiza «Mis libros» en el móvil; no restringe otros libros publicados ni el endpoint Unity heredado. En el formulario, el docente busca por título y selecciona libros mediante tarjetas con portada, estado y selección visible; también puede seleccionar todos o quitar la selección. Los borradores asignados aparecerán en la app cuando se publiquen. La tarjeta del estudiante resume las lecturas asignadas y permite abrir la edición para verlas todas.
 
 ## 4. Desarrollo local
 

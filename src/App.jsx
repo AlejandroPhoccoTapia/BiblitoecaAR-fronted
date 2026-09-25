@@ -1108,11 +1108,24 @@ function StudentCard({ books, student, onDelete, onEdit, onResetCode }) {
         </div>
       </div>
 
-      <div className="mt-4 rounded-lg bg-slate-50 p-3">
-        <p className="text-xs font-semibold uppercase text-slate-500">Libros asignados</p>
-        <p className="mt-2 text-sm text-slate-700">
-          {assignedBooks.length ? assignedBooks.map((book) => book.title).join(', ') : 'Sin libros asignados'}
-        </p>
+      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <p className="flex items-center gap-2 text-sm font-bold text-slate-800"><BookOpen size={17} className="text-teal-700" /> Lecturas asignadas</p>
+          <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-teal-800">{assignedBooks.length}</span>
+        </div>
+        {assignedBooks.length ? (
+          <div className="mt-3 space-y-2">
+            {assignedBooks.slice(0, 3).map((book) => (
+              <div className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 text-sm" key={book.id}>
+                <span className="min-w-0 truncate font-medium text-slate-800" title={book.title}>{book.title}</span>
+                {!book.is_published && <span className="shrink-0 text-xs font-semibold text-amber-700">Borrador</span>}
+              </div>
+            ))}
+            {assignedBooks.length > 3 && <p className="text-sm font-medium text-slate-600">+{assignedBooks.length - 3} más · Abre «Editar» para ver todos</p>}
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-slate-600">Todavía no tiene libros. Puedes asignarlos desde «Editar».</p>
+        )}
       </div>
 
       <div className="mt-4 flex gap-2">
@@ -1457,6 +1470,10 @@ function ChapterFormView({ book, chapter, form, isSaving, onBack, onChange, onSu
 
 function StudentFormView({ books, form, isSaving, onBack, onChange, onSubmit, student }) {
   const isEditing = Boolean(student);
+  const [bookSearch, setBookSearch] = useState('');
+  const normalizedBookSearch = normalizeSearch(bookSearch);
+  const visibleBooks = books.filter((book) => normalizeSearch(book.title).includes(normalizedBookSearch));
+  const selectedCount = books.filter((book) => form.assigned_books.includes(book.id)).length;
 
   function toggleBook(bookId) {
     const current = form.assigned_books;
@@ -1468,7 +1485,7 @@ function StudentFormView({ books, form, isSaving, onBack, onChange, onSubmit, st
   }
 
   return (
-    <section className="mt-6 max-w-5xl">
+    <section className="mt-6 max-w-6xl">
       <button className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500" onClick={onBack} type="button">
         <ArrowLeft size={16} />
         Volver a estudiantes
@@ -1479,8 +1496,8 @@ function StudentFormView({ books, form, isSaving, onBack, onChange, onSubmit, st
         title={isEditing ? 'Editar cuenta de estudiante' : 'Crear cuenta de estudiante'}
         text="Completa el perfil y selecciona sus lecturas. La foto es opcional."
       >
-        <form className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]" onSubmit={onSubmit}>
-          <div className="space-y-4">
+        <form className="grid gap-6 md:grid-cols-2" onSubmit={onSubmit}>
+          <div className="grid gap-4 md:col-span-2 md:grid-cols-2">
             <Field label="Nombre completo">
               <input
                 className="input"
@@ -1498,7 +1515,7 @@ function StudentFormView({ books, form, isSaving, onBack, onChange, onSubmit, st
               />
             </Field>
             <FileUpload label="Fotografía del estudiante" accept="image/*" value={form.photo} currentUrl={student?.photo_url} onChange={(file) => onChange('photo', file)} />
-            <label className="flex h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm">
+            <label className="flex min-h-14 items-center gap-3 self-start rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700 md:mt-7">
               <input
                 checked={form.is_active}
                 onChange={(event) => onChange('is_active', event.target.checked)}
@@ -1508,33 +1525,51 @@ function StudentFormView({ books, form, isSaving, onBack, onChange, onSubmit, st
             </label>
           </div>
 
-          <aside className="space-y-4">
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <p className="text-sm font-semibold">Libros asignados · {form.assigned_books.length}</p>
-              <div className="mt-2 flex gap-3 text-xs font-semibold text-teal-700"><button type="button" onClick={() => onChange('assigned_books', books.map((book) => book.id))}>Seleccionar todos</button><button type="button" onClick={() => onChange('assigned_books', [])}>Quitar selección</button></div>
-              {!books.length && <p className="mt-3 text-sm text-slate-500">Crea un libro en la biblioteca para poder asignarlo.</p>}
-              <div className="mt-3 max-h-72 space-y-2 overflow-auto pr-1">
-                {books.map((book) => (
-                  <label
-                    className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-3 text-sm"
-                    key={book.id}
-                  >
-                    <input
-                      checked={form.assigned_books.includes(book.id)}
-                      onChange={() => toggleBook(book.id)}
-                      type="checkbox"
-                    />
-                    <span>
-                      <span className="block font-semibold">{book.title}</span>
-                      <span className="block text-xs text-slate-500">
-                        {book.is_published ? 'Publicado' : 'Borrador'}
-                      </span>
-                    </span>
-                  </label>
-                ))}
+          <section aria-labelledby="assigned-books-title" className="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-2 sm:p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900" id="assigned-books-title">Libros para este estudiante</h3>
+                <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">Elige las lecturas que aparecerán en «Mis libros» de la app. Puedes cambiarlas cuando quieras.</p>
               </div>
+              <span className="rounded-full bg-teal-100 px-3 py-1.5 text-sm font-bold text-teal-800" aria-live="polite">{selectedCount} de {books.length} seleccionados</span>
             </div>
-          </aside>
+
+            {books.length ? (
+              <>
+                <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <label className="relative block w-full sm:max-w-sm">
+                    <span className="sr-only">Buscar libro para asignar</span>
+                    <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                    <input className="input pl-10" onChange={(event) => setBookSearch(event.target.value)} placeholder="Buscar libro por título" type="search" value={bookSearch} />
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    <button className="btn-secondary" disabled={selectedCount === books.length} onClick={() => onChange('assigned_books', books.map((book) => book.id))} type="button">Asignar todos ({books.length})</button>
+                    <button className="btn-secondary" disabled={selectedCount === 0} onClick={() => onChange('assigned_books', [])} type="button">Quitar todos</button>
+                  </div>
+                </div>
+                <p className="mt-4 text-sm text-slate-600">Los libros en borrador aparecerán en la app cuando los publiques.</p>
+                {visibleBooks.length ? (
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    {visibleBooks.map((book) => {
+                      const isSelected = form.assigned_books.includes(book.id);
+                      return (
+                        <label className={`flex min-h-28 cursor-pointer gap-4 rounded-xl border-2 p-4 transition hover:border-teal-400 ${isSelected ? 'border-teal-600 bg-teal-50' : 'border-slate-200 bg-white'}`} key={book.id}>
+                          {book.cover_url ? <img alt="" className="h-20 w-16 shrink-0 rounded-lg object-cover" loading="lazy" src={book.cover_url} /> : <span aria-hidden="true" className="flex h-20 w-16 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500"><BookOpen size={24} /></span>}
+                          <span className="min-w-0 flex-1">
+                            <span className="block break-words text-base font-bold text-slate-900">{book.title}</span>
+                            <span className={`mt-2 inline-flex rounded-md px-2 py-1 text-xs font-semibold ${book.is_published ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{book.is_published ? 'Publicado' : 'Borrador'}</span>
+                            {book.description && <span className="mt-2 block line-clamp-2 text-sm leading-5 text-slate-600">{book.description}</span>}
+                            <span className="mt-2 block text-sm font-medium text-teal-800">{isSelected ? 'Asignado' : 'Seleccionar para asignar'}</span>
+                          </span>
+                          <input aria-label={`Asignar ${book.title}`} checked={isSelected} className="mt-1 !h-5 !w-5" onChange={() => toggleBook(book.id)} type="checkbox" />
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : <p className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white p-5 text-sm text-slate-600">No encontramos libros con ese título. Prueba otra búsqueda.</p>}
+              </>
+            ) : <p className="mt-5 rounded-xl border border-dashed border-slate-300 bg-white p-5 text-sm text-slate-600">Todavía no hay libros para asignar. Crea uno en la biblioteca y vuelve aquí.</p>}
+          </section>
 
           <FormActions isSaving={isSaving} onBack={onBack} submitText={isEditing ? 'Guardar cambios' : 'Crear cuenta'} />
         </form>
