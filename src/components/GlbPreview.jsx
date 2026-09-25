@@ -71,7 +71,7 @@ export default function GlbPreview({ src, label = 'Modelo 3D' }) {
           interaction-prompt="none"
           shadow-intensity="1"
           loading="eager"
-          className="block h-full w-full"
+          style={{ display: 'block', width: '100%', height: '100%' }}
         />
         {status === 'loading' && (
           <div className="pointer-events-none absolute inset-0 grid place-items-center bg-slate-50/80 px-4 text-center text-sm font-medium text-slate-600" role="status">
