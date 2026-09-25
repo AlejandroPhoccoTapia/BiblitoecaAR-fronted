@@ -145,6 +145,8 @@ Las variables `VITE_*` se incorporan al código del navegador. No colocar claves
 | Estudiantes | `/teacher/students/`, `/teacher/students/<id>/`. |
 | Código del estudiante | `POST /teacher/students/<id>/reset-access-code/`. |
 
+El backend entrega códigos nuevos de 6 caracteres; el panel los muestra una sola vez al crear o renovar el acceso. Renovar un código anterior de 10 caracteres lo sustituye por uno corto e invalida las sesiones actuales del estudiante. No se recuperan códigos previos porque el servidor guarda su hash.
+
 Para libros y capítulos se usa PATCH; el editor de estudiantes envía el perfil completo mediante PUT. Sin archivos se usa JSON, conservando cadenas vacías y listas vacías. Con archivos se usa multipart y se repite `assigned_books` por cada ID. PUT permite a DRF interpretar una lista multipart ausente como vacía al subir una foto y quitar todas las asignaciones simultáneamente. No reutilizar `updateStudent()` para parches parciales sin adaptar este contrato.
 
 La API docente requiere `is_staff=True`. Las colecciones deben devolver arreglos; si se agrega paginación con `results`, adaptar el cliente. Después de guardar, la respuesta actualiza el estado local; no hay sincronización en tiempo real ni persistencia de pantalla al recargar.

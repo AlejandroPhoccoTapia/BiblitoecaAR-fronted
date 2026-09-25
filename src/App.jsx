@@ -1014,7 +1014,7 @@ function AccessCodeDialog({ issuedAccess, onClose }) {
       <section aria-labelledby="access-code-title" aria-modal="true" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" onKeyDown={(event) => { if (event.key === 'Escape') onClose(); }} role="dialog">
         <div className="flex size-12 items-center justify-center rounded-xl bg-teal-50 text-teal-700"><KeyRound size={23} /></div>
         <h2 className="mt-4 text-2xl font-bold" id="access-code-title">Código de acceso de {issuedAccess.name}</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-600">Entrégalo al estudiante. Se muestra solo ahora; si lo pierde, puedes generar otro desde su perfil.</p>
+        <p className="mt-2 text-sm leading-6 text-slate-600">Tiene {issuedAccess.code.length} caracteres. Entrégalo al estudiante; se muestra solo ahora. Puede escribirlo en minúsculas. Si lo pierde, genera otro desde su perfil.</p>
         <p className="mt-5 select-all rounded-xl border border-teal-200 bg-teal-50 px-4 py-4 text-center font-mono text-2xl font-bold tracking-[0.2em] text-teal-900" data-testid="student-access-code">{issuedAccess.code}</p>
         <div className="mt-5 flex gap-3">
           <button className="btn-secondary flex-1 justify-center" onClick={copyCode} type="button">{copied ? 'Copiado' : 'Copiar código'}</button>
