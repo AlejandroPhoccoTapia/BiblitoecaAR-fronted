@@ -34,19 +34,50 @@ button {
 
 button:disabled {
   cursor: not-allowed;
+  opacity: 0.55;
+}
+
+fieldset { border: 0; padding: 0; margin: 0; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 3px solid #0d9488; outline-offset: 3px; }
+input[type="checkbox"] { accent-color: #0f766e; width: 1.1rem; height: 1.1rem; flex-shrink: 0; }
+.app-shell { min-height: 100vh; background: #f5f7f8; }
+.login-shell { background: radial-gradient(ellipse at 5% 10%, #ccfbf1 0, transparent 55%), #f5f7f8; }
+.brand-mark { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 16px; background: #0f766e; color: white; box-shadow: 0 6px 16px #0f766e25; }
+.dashboard-banner { position: relative; overflow: hidden; border-radius: 24px; padding: 32px; background: linear-gradient(115deg, #134e4a, #0f766e); color: white; }
+.dashboard-banner::after { content: ''; position: absolute; width: 360px; height: 360px; border: 1px solid #ffffff15; border-radius: 50%; right: -50px; top: -130px; box-shadow: 0 0 0 55px #ffffff05, 0 0 0 110px #ffffff04; }
+.banner-illustration { position: absolute; right: 8%; top: 48px; color: #99f6e4; transform: rotate(-12deg); }
+.banner-illustration span { display: grid; place-items: center; position: absolute; right: -22px; top: -10px; background: #ccfbf1; color: #115e59; border-radius: 16px; width: 48px; height: 48px; transform: rotate(12deg); }
+.stat-card { display: flex; align-items: center; gap: 14px; border: 1px solid #e2e8f0; border-radius: 16px; padding: 18px; background: white; }
+.stat-icon { display: grid; place-items: center; width: 42px; height: 42px; flex-shrink: 0; background: #f0fdfa; border-radius: 12px; color: #0f766e; }
+.section-nav { display: flex; gap: 24px; border-bottom: 1px solid #dce3e8; }
+.section-nav button { display: flex; align-items: center; gap: 8px; padding: 0 4px 14px; color: #64748b; font-weight: 600; border-bottom: 3px solid transparent; }
+.section-nav button[aria-current] { color: #0f766e; border-color: #0f766e; }
+.catalog-card { transition: box-shadow .18s, border-color .18s; }
+.catalog-card:hover { border-color: #99c9c3; box-shadow: 0 8px 24px #0f172a08; }
+.skip-link { position: fixed; top: -100px; left: 16px; z-index: 50; padding: 12px; background: white; border-radius: 8px; }
+.skip-link:focus { top: 12px; }
+@media (max-width: 640px) {
+  .dashboard-banner { padding: 24px; }
+  .banner-illustration { display: none; }
+  .stat-card { padding: 12px; gap: 10px; }
+  .stat-icon { width: 32px; height: 32px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
 
 @layer components {
   .input {
-    @apply w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-teal-600 focus:ring-4 focus:ring-teal-100;
+    @apply w-full min-h-11 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-teal-600 focus:ring-4 focus:ring-teal-100;
   }
 
   .btn-primary {
-    @apply inline-flex items-center gap-2 rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-800 focus:outline-none focus:ring-4 focus:ring-teal-100;
+    @apply inline-flex min-h-11 items-center gap-2 rounded-xl bg-teal-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-800 focus:outline-none focus:ring-4 focus:ring-teal-100;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-slate-100;
+    @apply inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-slate-100;
   }
 
   .btn-danger {
