@@ -772,7 +772,7 @@ function LoginView({
           )}
           {isRegistering ? (
             <form className="mt-5 space-y-4" onSubmit={onRegisterSubmit}>
-              <p className="text-sm leading-6 text-slate-500">El registro está disponible cuando la biblioteca aún no tiene un docente.</p>
+              <p className="text-sm leading-6 text-slate-500">Cualquier persona puede crear una cuenta docente y entrar al panel.</p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Nombre">
                   <input
@@ -844,7 +844,7 @@ function LoginView({
             onClick={() => onModeChange(isRegistering ? 'login' : 'register')}
             type="button"
           >
-            {isRegistering ? 'Ya tengo cuenta docente' : 'Crear primera cuenta docente'}
+            {isRegistering ? 'Ya tengo cuenta docente' : 'Crear cuenta docente'}
           </button>
         </section>
       </div>

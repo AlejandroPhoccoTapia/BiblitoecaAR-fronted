@@ -68,7 +68,7 @@ vercel.json      Reescritura SPA hacia index.html
 
 Al iniciar, `getTeacherSession()` consulta `/auth/me/`. Con sesión, `loadTeacherContent()` solicita libros, escenas y estudiantes en paralelo. Sin sesión aparece login/registro.
 
-El registro público crea al primer docente solo si no existe ningún usuario staff. Después, la API requiere un docente autenticado para crear otro. El panel no tiene una pantalla específica de administración de docentes dentro de la sesión. Un superusuario Django también puede acceder. Todos los docentes comparten los datos del catálogo; no hay filtros por propietario o institución.
+El registro público permite crear cuentas docentes en cualquier momento y la cuenta inicia sesión automáticamente. No hay verificación de correo ni aprobación administrativa. El panel no tiene una pantalla específica de administración de docentes dentro de la sesión. Un superusuario Django también puede acceder. Todos los docentes comparten los datos del catálogo; no hay filtros por propietario o institución.
 
 ### Biblioteca
 
