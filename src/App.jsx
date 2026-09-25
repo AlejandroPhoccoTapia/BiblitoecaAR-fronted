@@ -62,6 +62,7 @@ const emptyChapterForm = {
   audio: null,
   glb_model: null,
   remove_glb_model: false,
+  tap_animation_name: '',
   ar_marker_width_cm: 6,
   ar_model_size_cm: 8,
   ar_offset_x_cm: 0,
@@ -313,6 +314,7 @@ export default function App() {
       audio: null,
       glb_model: null,
       remove_glb_model: false,
+      tap_animation_name: chapter.tap_animation_name ?? '',
       ar_marker_width_cm: chapter.ar_marker_width_cm ?? 6,
       ar_model_size_cm: chapter.ar_model_size_cm ?? 8,
       ar_offset_x_cm: chapter.ar_offset_x_cm ?? 0,
@@ -461,6 +463,7 @@ export default function App() {
       audio: chapterForm.audio,
       glb_model: chapterForm.glb_model,
       remove_glb_model: chapterForm.remove_glb_model && !chapterForm.glb_model,
+      tap_animation_name: chapterForm.tap_animation_name,
       ...arPlacement,
     };
 
@@ -751,9 +754,16 @@ export default function App() {
             form={chapterForm}
             isSaving={isSavingChapter}
             onBack={goToDetail}
-            onChange={(field, value) =>
-              { setDirty(true); setChapterForm((current) => ({ ...current, [field]: value })); }
-            }
+            onChange={(field, value) => {
+              setDirty(true);
+              setChapterForm((current) => ({
+                ...current,
+                [field]: value,
+                ...(field === 'glb_model' || (field === 'remove_glb_model' && value)
+                  ? { tap_animation_name: '' } : {}),
+                ...(field === 'glb_model' && value ? { remove_glb_model: false } : {}),
+              }));
+            }}
             onSubmit={handleSaveChapter}
           />
         )}
@@ -1309,6 +1319,11 @@ function ChapterRow({ chapter, onDelete, onEdit, previewOpen, onTogglePreview })
           <p className="mt-3 text-xs leading-5 text-slate-600">
             AR: modelo {chapter.ar_model_size_cm ?? 8} cm · QR impreso {chapter.ar_marker_width_cm ?? 6} cm · giro {chapter.ar_yaw_degrees ?? 0}°. Ajuste final: app móvil → Docente → escanear QR.
           </p>
+          {chapter.glb_model_url && (
+            <p className="mt-1 text-xs font-medium text-teal-800">
+              Al tocar el modelo: {chapter.tap_animation_name || 'Automática (Walk)'}
+            </p>
+          )}
         </div>
         <SceneQrCard chapter={chapter} />
         <div className="flex shrink-0 gap-2">
@@ -1383,6 +1398,17 @@ function BookFormView({ book, form, isSaving, onBack, onChange, onSubmit }) {
 
 function ChapterFormView({ book, chapter, form, isSaving, onBack, onChange, onSubmit }) {
   const isEditing = Boolean(chapter);
+  const [localPreviewUrl, setLocalPreviewUrl] = useState(null);
+  useEffect(() => {
+    if (!form.glb_model) {
+      setLocalPreviewUrl(null);
+      return undefined;
+    }
+    const url = URL.createObjectURL(form.glb_model);
+    setLocalPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [form.glb_model]);
+  const previewUrl = form.remove_glb_model ? null : form.glb_model ? localPreviewUrl : chapter?.glb_model_url;
 
   return (
     <section className="mt-6 max-w-4xl">
@@ -1435,9 +1461,21 @@ function ChapterFormView({ book, chapter, form, isSaving, onBack, onChange, onSu
             </Field>
             <FileUpload label="Narración de audio" accept="audio/*" kind="audio" value={form.audio} currentUrl={chapter?.audio_url} onChange={(file) => onChange('audio', file)} />
             <FileUpload label="Modelo 3D · GLB" accept=".glb,model/gltf-binary" kind="model" value={form.glb_model} currentUrl={form.remove_glb_model ? null : chapter?.glb_model_url} onChange={(file) => onChange('glb_model', file)} />
-            <p className="text-xs leading-5 text-slate-600">Para animaciones, sube un GLB con clips como Idle y Walk. Un OBJ estático solo puede desplazarse como un bloque.</p>
+            <p className="text-xs leading-5 text-slate-600">Sube un GLB con animaciones incluidas. Después podrás elegir cuál se reproduce al tocar el modelo en la app.</p>
             {chapter?.glb_model_url && !form.glb_model && <label className="flex items-center gap-2 text-sm text-rose-700"><input type="checkbox" checked={Boolean(form.remove_glb_model)} onChange={(event) => onChange('remove_glb_model', event.target.checked)} />Retirar el modelo actual al guardar</label>}
           </div>
+
+          {previewUrl && (
+            <div className="md:col-span-2">
+              <h3 className="mb-2 font-semibold text-slate-900">Vista previa y animación al tocar</h3>
+              <GlbPreviewLazy
+                src={previewUrl}
+                label={form.title || 'capítulo'}
+                tapAnimationName={form.tap_animation_name}
+                onTapAnimationChange={(name) => onChange('tap_animation_name', name)}
+              />
+            </div>
+          )}
 
           <div className="md:col-span-2 rounded-xl border border-teal-100 bg-teal-50/70 p-4">
             <h3 className="font-semibold text-slate-900">Ubicación del modelo en la página</h3>

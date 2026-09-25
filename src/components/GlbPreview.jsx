@@ -2,13 +2,14 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Box, Pause, Play } from 'lucide-react';
 import '@google/model-viewer';
 
-export default function GlbPreview({ src, label = 'Modelo 3D' }) {
+export default function GlbPreview({ src, label = 'Modelo 3D', tapAnimationName = '', onTapAnimationChange }) {
   const animationSelectId = useId();
   const viewerRef = useRef(null);
   const [status, setStatus] = useState('loading');
   const [animations, setAnimations] = useState([]);
   const [animationName, setAnimationName] = useState('');
   const [playing, setPlaying] = useState(false);
+  const choosingTapAnimation = typeof onTapAnimationChange === 'function';
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -21,9 +22,10 @@ export default function GlbPreview({ src, label = 'Modelo 3D' }) {
 
     const handleLoad = () => {
       const names = [...(viewer.availableAnimations || [])];
+      const automaticName = names.find((name) => /walk|caminar|walking/i.test(name)) || names[0] || '';
       setAnimations(names);
-      setAnimationName(names[0] || '');
-      if (names.length) viewer.animationName = names[0];
+      setAnimationName(automaticName);
+      if (automaticName) viewer.animationName = automaticName;
       setStatus('ready');
     };
     const handleError = () => {
@@ -40,8 +42,16 @@ export default function GlbPreview({ src, label = 'Modelo 3D' }) {
     };
   }, [src]);
 
-  function chooseAnimation(event) {
-    const nextName = event.target.value;
+  useEffect(() => {
+    if (!tapAnimationName || !animations.includes(tapAnimationName) || !viewerRef.current) return;
+    viewerRef.current.pause();
+    viewerRef.current.animationName = tapAnimationName;
+    viewerRef.current.currentTime = 0;
+    setAnimationName(tapAnimationName);
+    setPlaying(false);
+  }, [tapAnimationName, animations]);
+
+  function chooseAnimation(nextName) {
     setAnimationName(nextName);
     setPlaying(false);
     if (viewerRef.current) {
@@ -49,6 +59,12 @@ export default function GlbPreview({ src, label = 'Modelo 3D' }) {
       viewerRef.current.animationName = nextName;
       viewerRef.current.currentTime = 0;
     }
+  }
+
+  function chooseTapAnimation(event) {
+    const nextName = event.target.value;
+    onTapAnimationChange(nextName);
+    chooseAnimation(nextName || animations.find((name) => /walk|caminar|walking/i.test(name)) || animations[0] || '');
   }
 
   function toggleAnimation() {
@@ -89,13 +105,19 @@ export default function GlbPreview({ src, label = 'Modelo 3D' }) {
         {status === 'ready' && animations.length === 0 && <span>Sin animaciones en este GLB</span>}
         {status === 'ready' && animations.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
-            <label className="sr-only" htmlFor={animationSelectId}>Animación del modelo</label>
+            <label className={choosingTapAnimation ? 'font-semibold text-slate-700' : 'sr-only'} htmlFor={animationSelectId}>
+              {choosingTapAnimation ? 'Al tocar el modelo' : 'Animación del modelo'}
+            </label>
             <select
               id={animationSelectId}
               className="min-h-9 max-w-44 rounded-lg border border-slate-300 bg-white px-2 text-xs text-slate-700"
-              value={animationName}
-              onChange={chooseAnimation}
+              value={choosingTapAnimation ? tapAnimationName : animationName}
+              onChange={choosingTapAnimation ? chooseTapAnimation : (event) => chooseAnimation(event.target.value)}
             >
+              {choosingTapAnimation && <option value="">Automática (Walk)</option>}
+              {choosingTapAnimation && tapAnimationName && !animations.includes(tapAnimationName) && (
+                <option value={tapAnimationName}>No encontrada: {tapAnimationName}</option>
+              )}
               {animations.map((name) => <option key={name} value={name}>{name}</option>)}
             </select>
             <button className="btn-secondary min-h-9 px-2 py-1 text-xs" type="button" onClick={toggleAnimation}>
@@ -105,6 +127,11 @@ export default function GlbPreview({ src, label = 'Modelo 3D' }) {
           </div>
         )}
       </div>
+      {choosingTapAnimation && status === 'ready' && animations.length > 0 && (
+        <p className="px-4 pb-3 text-xs leading-5 text-slate-600">
+          Reproduce el clip para comprobarlo. La opción automática busca Walk o Caminar y desplaza el modelo; un clip elegido se reproduce sin desplazamiento adicional.
+        </p>
+      )}
     </div>
   );
 }

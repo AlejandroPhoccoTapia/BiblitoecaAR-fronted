@@ -16,7 +16,7 @@ const fieldNames = {
   title: 'Título', text: 'Texto', prefab_key: 'Clave del modelo', username: 'Usuario',
   password: 'Contraseña', full_name: 'Nombre', classroom: 'Aula', photo: 'Foto',
   assigned_books: 'Libros asignados', cover: 'Portada', glb_model: 'Modelo 3D',
-  audio: 'Audio', order: 'Orden', non_field_errors: 'Formulario',
+  audio: 'Audio', order: 'Orden', tap_animation_name: 'Animación al tocar', non_field_errors: 'Formulario',
 };
 
 export function formatApiError(body) {
