@@ -61,7 +61,22 @@ const emptyChapterForm = {
   audio: null,
   glb_model: null,
   remove_glb_model: false,
+  ar_marker_width_cm: 6,
+  ar_model_size_cm: 8,
+  ar_offset_x_cm: 0,
+  ar_offset_y_cm: 0.5,
+  ar_offset_z_cm: 0,
+  ar_yaw_degrees: 0,
 };
+
+const arPlacementFields = [
+  { key: 'ar_marker_width_cm', label: 'Ancho del QR impreso (cm)', min: 2, max: 30, step: 0.5 },
+  { key: 'ar_model_size_cm', label: 'Lado mayor del modelo (cm)', min: 1, max: 50, step: 0.5 },
+  { key: 'ar_offset_x_cm', label: 'Mover a derecha / izquierda (cm)', min: -50, max: 50, step: 0.5 },
+  { key: 'ar_offset_y_cm', label: 'Elevar sobre la página (cm)', min: -50, max: 50, step: 0.5 },
+  { key: 'ar_offset_z_cm', label: 'Mover sobre la página (cm)', min: -50, max: 50, step: 0.5 },
+  { key: 'ar_yaw_degrees', label: 'Giro del personaje (grados)', min: -180, max: 180, step: 5 },
+];
 
 const emptyStudentForm = {
   full_name: '',
@@ -297,6 +312,12 @@ export default function App() {
       audio: null,
       glb_model: null,
       remove_glb_model: false,
+      ar_marker_width_cm: chapter.ar_marker_width_cm ?? 6,
+      ar_model_size_cm: chapter.ar_model_size_cm ?? 8,
+      ar_offset_x_cm: chapter.ar_offset_x_cm ?? 0,
+      ar_offset_y_cm: chapter.ar_offset_y_cm ?? 0.5,
+      ar_offset_z_cm: chapter.ar_offset_z_cm ?? 0,
+      ar_yaw_degrees: chapter.ar_yaw_degrees ?? 0,
     });
     setEditingChapterId(chapter.id);
     setSelectedBookId(chapter.book);
@@ -405,10 +426,26 @@ export default function App() {
 
     const title = chapterForm.title.trim();
     const order = Number(chapterForm.order);
-    if (!title || !chapterForm.text.trim() || !chapterForm.prefab_key.trim()) {
-      setErrorMessage('Completa el título, el texto y la clave del modelo.'); return;
+    if (!title || !chapterForm.text.trim()) {
+      setErrorMessage('Completa el título y el texto.'); return;
     }
     if (!Number.isInteger(order) || order < 1) { setErrorMessage('El orden debe ser un entero mayor que cero.'); return; }
+
+    const arPlacement = {
+      ar_marker_width_cm: Number(chapterForm.ar_marker_width_cm),
+      ar_model_size_cm: Number(chapterForm.ar_model_size_cm),
+      ar_offset_x_cm: Number(chapterForm.ar_offset_x_cm),
+      ar_offset_y_cm: Number(chapterForm.ar_offset_y_cm),
+      ar_offset_z_cm: Number(chapterForm.ar_offset_z_cm),
+      ar_yaw_degrees: Number(chapterForm.ar_yaw_degrees),
+    };
+    if (!Number.isFinite(arPlacement.ar_marker_width_cm) || arPlacement.ar_marker_width_cm < 2 || arPlacement.ar_marker_width_cm > 30 ||
+        !Number.isFinite(arPlacement.ar_model_size_cm) || arPlacement.ar_model_size_cm < 1 || arPlacement.ar_model_size_cm > 50 ||
+        [arPlacement.ar_offset_x_cm, arPlacement.ar_offset_y_cm, arPlacement.ar_offset_z_cm].some((value) => !Number.isFinite(value) || value < -50 || value > 50) ||
+        !Number.isFinite(arPlacement.ar_yaw_degrees) || Math.abs(arPlacement.ar_yaw_degrees) > 180) {
+      setErrorMessage('Revisa las medidas AR: marcador de 2 a 30 cm, modelo de 1 a 50 cm, desplazamientos de −50 a 50 cm y giro de −180° a 180°.');
+      return;
+    }
 
     mutationLock.current = true;
     setIsSavingChapter(true);
@@ -423,6 +460,7 @@ export default function App() {
       audio: chapterForm.audio,
       glb_model: chapterForm.glb_model,
       remove_glb_model: chapterForm.remove_glb_model && !chapterForm.glb_model,
+      ...arPlacement,
     };
 
     try {
@@ -1236,6 +1274,9 @@ function ChapterRow({ chapter, onDelete, onEdit }) {
           </div>
           {chapter.audio_url && <audio className="mt-4 w-full max-w-md" controls preload="none" src={chapter.audio_url}>Tu navegador no admite audio.</audio>}
           {chapter.glb_model_url && <a className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-teal-700 underline" href={chapter.glb_model_url} target="_blank" rel="noreferrer"><ExternalLink size={15} />Abrir modelo GLB</a>}
+          <p className="mt-3 text-xs leading-5 text-slate-600">
+            AR: modelo {chapter.ar_model_size_cm ?? 8} cm · QR impreso {chapter.ar_marker_width_cm ?? 6} cm · giro {chapter.ar_yaw_degrees ?? 0}°. Ajuste final: app móvil → Docente → escanear QR.
+          </p>
         </div>
         <SceneQrCard chapter={chapter} />
         <div className="flex shrink-0 gap-2">
@@ -1347,17 +1388,34 @@ function ChapterFormView({ book, chapter, form, isSaving, onBack, onChange, onSu
             />
           </Field>
           <div className="space-y-4">
-            <Field label="Clave del modelo local">
+            <Field label="Clave del modelo local · opcional">
               <input
                 className="input"
                 placeholder="Ej. heart_model"
-                required maxLength={120} value={form.prefab_key}
+                maxLength={120} value={form.prefab_key}
                 onChange={(event) => onChange('prefab_key', event.target.value)}
               />
             </Field>
             <FileUpload label="Narración de audio" accept="audio/*" kind="audio" value={form.audio} currentUrl={chapter?.audio_url} onChange={(file) => onChange('audio', file)} />
             <FileUpload label="Modelo 3D · GLB" accept=".glb,model/gltf-binary" kind="model" value={form.glb_model} currentUrl={chapter?.glb_model_url} onChange={(file) => onChange('glb_model', file)} />
+            <p className="text-xs leading-5 text-slate-600">Para animaciones, sube un GLB con clips como Idle y Walk. Un OBJ estático solo puede desplazarse como un bloque.</p>
             {chapter?.glb_model_url && !form.glb_model && <label className="flex items-center gap-2 text-sm text-rose-700"><input type="checkbox" checked={Boolean(form.remove_glb_model)} onChange={(event) => onChange('remove_glb_model', event.target.checked)} />Retirar el modelo actual al guardar</label>}
+          </div>
+
+          <div className="md:col-span-2 rounded-xl border border-teal-100 bg-teal-50/70 p-4">
+            <h3 className="font-semibold text-slate-900">Ubicación del modelo en la página</h3>
+            <p className="mt-1 text-sm leading-6 text-slate-600">Estas son medidas iniciales. En la app móvil, entra en «Docente», escanea el QR y ajusta el modelo sobre el libro real antes de publicar.</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {arPlacementFields.map(({ key, label, min, max, step }) => (
+                <Field key={key} label={label}>
+                  <input
+                    className="input" type="number" required min={min} max={max} step={step}
+                    value={form[key]}
+                    onChange={(event) => onChange(key, event.target.value)}
+                  />
+                </Field>
+              ))}
+            </div>
           </div>
 
           {chapter && (
@@ -1558,6 +1616,7 @@ function SceneQrCard({ chapter }) {
       <p className="mt-2 break-all rounded-md bg-white px-2 py-1 text-xs font-medium text-slate-700">
         {chapter.qr_code}
       </p>
+      <p className="mt-2 text-xs leading-5 text-slate-600">Imprime este QR con {chapter.ar_marker_width_cm ?? 6} cm de ancho real. El tamaño con que se muestra aquí no sirve como referencia de impresión.</p>
       {chapter.qr_image_url && (
         <div className="mt-3 grid grid-cols-2 gap-2">
           <a
