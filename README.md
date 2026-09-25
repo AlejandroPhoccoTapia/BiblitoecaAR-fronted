@@ -75,11 +75,15 @@ El registro público permite crear cuentas docentes en cualquier momento y la cu
 1. Buscar libros por título/descripción.
 2. Crear y editar título, descripción, portada y estado publicado/borrador.
 3. Abrir un libro y listar capítulos por orden.
-4. Crear/editar capítulo: título, orden, texto, `prefab_key`, audio y `.glb`.
+4. Crear/editar capítulo: título, orden, texto, `prefab_key` local o `.glb`, audio y ajustes físicos AR.
 5. Ver, abrir y solicitar descarga del QR generado por Django.
 6. Eliminar capítulos o libros; el backend elimina las escenas del libro en cascada.
 
 Los indicadores son conteos del catálogo, no estadísticas de aprendizaje. No se genera voz, se convierten modelos ni se producen QR en el navegador. `prefab_key` referencia un prefab local en Unity; un GLB se descarga dinámicamente. No hay visor 3D integrado en el panel.
+
+El formulario permite indicar el ancho real del QR impreso (2–30 cm), la dimensión máxima deseada del modelo (1–50 cm), desplazamientos X/Y/Z (−50 a 50 cm) y giro (−180 a 180°). Los valores iniciales son 6, 8, 0, 0.5, 0 y 0. El ancho del QR define la escala física del seguimiento de imagen; la dimensión del modelo se normaliza aparte, de modo que un QR más grande no agranda automáticamente el objeto. El docente puede afinar la posición mirando la página con la vista docente de la app Android y guardar desde allí. Si el QR ya forma parte de la biblioteca de imágenes estática de Unity, su ancho debe actualizarse también en ese asset.
+
+Para movimiento real, subir un GLB con clips de animación `Walk`/`Caminar` y opcionalmente `Idle`/`Quieto`; Unity reproduce el clip al tocar el modelo. Un OBJ o prefab estático solo se desplaza como un cuerpo. El panel no genera huesos ni animaciones.
 
 La descarga de QR usa el atributo HTML `download`; con archivos en otro origen su comportamiento depende del navegador y del servidor.
 
@@ -145,10 +149,10 @@ La API docente requiere `is_staff=True`. Las colecciones deben devolver arreglos
 | Recurso | Campos clave de respuesta |
 | --- | --- |
 | Libro | `id`, `title`, `description`, `cover_url`, `is_published`, `scenes_count`, `updated_at`. |
-| Capítulo | `id`, `book` (ID), `title`, `order`, `text`, `prefab_key`, `audio_url`, `glb_model_url`, `qr_code`, `qr_image_url`. |
+| Capítulo | `id`, `book` (ID), `title`, `order`, `text`, `prefab_key`, `audio_url`, `glb_model_url`, `qr_code`, `qr_image_url` y seis valores AR físicos. |
 | Estudiante | `id`, `full_name`, `classroom`, `photo_url`, `assigned_books` (IDs), `assigned_books_detail`, `has_face_signature`, `is_active`. |
 
-El backend exige `text` y `prefab_key` en escenas nuevas, incluso con GLB. La UI exige título al guardar y muestra los demás errores del servidor. No reconstruir QR a partir del título: lo genera Django con un identificador único.
+El backend exige `text` en escenas nuevas. `prefab_key` puede quedar vacío al subir un GLB; la UI exige título, pero también permite capítulos solo de lectura sin recurso 3D. Los errores del servidor se muestran en el formulario. No reconstruir QR a partir del título: lo genera Django con un identificador único.
 
 ## 6. Despliegue previsto en Vercel
 
@@ -180,7 +184,7 @@ La suite usa `node:test` (Node 22.12+ recomendado), sin dependencias de test adi
 Recorrido manual:
 1. Entrar, recargar, comprobar persistencia de sesión y cerrar sesión.
 2. Crear/editar un libro, portada y publicación.
-3. Crear capítulo con texto, clave de prefab, audio y GLB válido.
+3. Crear capítulo con texto, clave de prefab o GLB válido, audio opcional y medidas AR del QR impreso.
 4. Abrir QR, comprobar `/api/unity/scenes/<qr_code>/` y las URLs de archivos.
 5. Despublicar el libro y comprobar 404 en esa API.
 6. Crear/editar estudiante, asignar varios libros y retirar todas las asignaciones.
