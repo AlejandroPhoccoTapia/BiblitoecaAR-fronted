@@ -198,7 +198,7 @@ Recorrido manual:
 6. Crear/editar estudiante, asignar varios libros y retirar todas las asignaciones.
 7. Probar el QR con Unity en Android para validar modelo, audio y seguimiento.
 
-Validado en esta revisión: siete pruebas Node, ESLint y compilación de producción. La revisión visual local con datos ficticios y un GLB generado para prueba comprobó que el modelo aparece antes de guardar y que su clip se puede reproducir; la prueba anterior también cubrió biblioteca, búsqueda sin resultados y edición de estudiante vaciando aula/asignaciones. La descarga PDF tiene prueba de contrato del frontend y prueba del endpoint en Django; aún falta comprobarla en el despliegue real. `npm install` reportó cero vulnerabilidades. Falta validar subidas persistentes, URLs de storage entre dominios y Android.
+Validado el 5 de noviembre de 2026: siete pruebas Node del frontend, ESLint, compilación de producción y 51 pruebas de Django con SQLite temporal. El resultado y los casos que requieren validación manual están en [el registro de pruebas](docs/PRUEBAS-2026-11-05.md). En una revisión anterior, la UI con datos ficticios y un GLB generado para prueba mostró el modelo antes de guardar y reprodujo su clip; también se recorrieron biblioteca, búsqueda sin resultados y edición de estudiante vaciando aula/asignaciones. La descarga PDF tiene pruebas automatizadas del frontend y Django, pero aún falta comprobar la impresión y el despliegue real. Falta validar subidas persistentes, URLs de storage entre dominios y Android.
 
 Para revisar la UI sin datos reales, ejecutar en dos terminales:
 
