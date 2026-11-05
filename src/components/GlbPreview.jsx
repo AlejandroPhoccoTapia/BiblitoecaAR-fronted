@@ -114,7 +114,7 @@ export default function GlbPreview({ src, label = 'Modelo 3D', tapAnimationName 
               value={choosingTapAnimation ? tapAnimationName : animationName}
               onChange={choosingTapAnimation ? chooseTapAnimation : (event) => chooseAnimation(event.target.value)}
             >
-              {choosingTapAnimation && <option value="">Automática (tocar modelo)</option>}
+              {choosingTapAnimation && <option value="">Automática (al tocar pantalla)</option>}
               {choosingTapAnimation && tapAnimationName && !animations.includes(tapAnimationName) && (
                 <option value={tapAnimationName}>No encontrada: {tapAnimationName}</option>
               )}
@@ -129,7 +129,7 @@ export default function GlbPreview({ src, label = 'Modelo 3D', tapAnimationName 
       </div>
       {choosingTapAnimation && status === 'ready' && animations.length > 0 && (
         <p className="px-4 pb-3 text-xs leading-5 text-slate-600">
-          Reproduce el clip para comprobarlo. Un clip elegido se activa al tocar cualquier zona libre de la cámara, sin mover el modelo. La opción automática requiere tocar el modelo y busca Walk o Caminar.
+          Reproduce el clip para comprobarlo. Al tocar una zona libre de la cámara se activa el clip elegido, sin desplazar el modelo. En modo automático se busca Walk o Caminar; si no existe, se usa la primera animación disponible.
         </p>
       )}
     </div>
