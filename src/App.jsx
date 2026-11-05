@@ -835,9 +835,9 @@ function LoginView({
               <h1 className="text-2xl font-bold">Acceso docente</h1>
             </div>
           </div>
-          <h2 className="mt-8 text-4xl font-bold">Gestiona libros, capítulos y cuentas infantiles.</h2>
+          <h2 className="mt-8 text-4xl font-bold">Prepara cuentos que cobran vida.</h2>
           <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
-            Un espacio para preparar lecturas, organizar estudiantes y conectar cada capítulo con una experiencia de realidad aumentada.
+            Organiza tus libros y estudiantes, añade audio y modelos 3D, y entrega a cada capítulo su código QR.
           </p>
         </section>
 
@@ -1154,12 +1154,12 @@ function StudentCard({ books, student, onDelete, onEdit, onResetCode }) {
         )}
       </div>
 
-      <div className="mt-4 flex gap-2">
-        <button className="btn-secondary flex-1 justify-center" onClick={onResetCode} type="button">
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button className="btn-secondary min-w-28 flex-1 justify-center" onClick={onResetCode} type="button">
           <KeyRound size={17} />
           {student.has_access_code ? 'Nuevo código' : 'Crear código'}
         </button>
-        <button className="btn-secondary flex-1 justify-center" onClick={onEdit} type="button">
+        <button className="btn-secondary min-w-28 flex-1 justify-center" onClick={onEdit} type="button">
           <Edit3 size={17} />
           Editar
         </button>
@@ -1227,51 +1227,38 @@ function BookDetailView({
 
   return (
     <section className="mt-6">
-      <button className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500" onClick={onBack} type="button">
+      <button className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-teal-800 hover:text-teal-950" onClick={onBack} type="button">
         <ArrowLeft size={16} />
         Volver a libros
       </button>
 
-      <div className="mt-4 catalog-card overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className={`bg-gradient-to-br ${coverColors[book.id % coverColors.length]} px-5 py-6 text-white`}>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0">
-              <StatusBadge published={book.is_published} light />
-              <h2 className="mt-3 text-3xl font-bold">{book.title}</h2>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-white/85">
-                {book.description || 'Este libro no tiene descripción.'}
-              </p>
-              <div className="mt-4 flex items-center gap-2 text-sm text-white/85">
-                <CalendarDays size={16} />
-                Actualizado {formatDate(book.updated_at)}
-              </div>
-            </div>
-            {book.cover_url && (
-              <img alt="" className="h-40 w-full rounded-lg object-cover ring-1 ring-white/25 lg:w-56" src={book.cover_url} />
-            )}
+      <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-5 p-5 sm:p-7 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 max-w-3xl">
+            <StatusBadge published={book.is_published} />
+            <h2 className="mt-3 break-words text-3xl font-bold tracking-tight text-slate-950">{book.title}</h2>
+            <p className="mt-3 text-sm leading-7 text-slate-600">{book.description || 'Este libro no tiene descripción.'}</p>
+            <div className="mt-4 flex items-center gap-2 text-sm text-slate-500"><CalendarDays size={16} />Actualizado {formatDate(book.updated_at)}</div>
+          </div>
+          {book.cover_url && <img alt="" className="h-44 w-full rounded-xl object-cover lg:w-40" src={book.cover_url} />}
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-4 border-y border-slate-200 bg-slate-50/70 px-5 py-4 sm:px-7">
+          <div className="flex flex-wrap gap-3">
+            <Metric label="Capítulos" value={scenes.length} />
+            <Metric label="Estado" value={book.is_published ? 'Publicado' : 'Borrador'} />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button className="btn-primary" onClick={onCreateChapter} type="button"><Plus size={17} />Nuevo capítulo</button>
+            <button className="btn-secondary" onClick={() => onEditBook(book)} type="button"><Edit3 size={17} />Editar libro</button>
+            <button className="btn-danger" onClick={() => onDeleteBook(book)} type="button"><Trash2 size={17} />Eliminar libro</button>
           </div>
         </div>
 
-        <div className="grid gap-3 border-b border-slate-200 p-4 md:grid-cols-[repeat(3,1fr)_auto]">
-          <Metric label="Capítulos" value={scenes.length} />
-          <Metric label="Estado" value={book.is_published ? 'Publicado' : 'Borrador'} />
-          <Metric label="ID libro" value={book.id} />
-          <div className="flex flex-wrap items-end gap-2">
-            <button className="btn-primary" onClick={onCreateChapter} type="button">
-              <Plus size={17} />
-              Nuevo capítulo
-            </button>
-            <button className="btn-secondary" onClick={() => onEditBook(book)} type="button">
-              <Edit3 size={17} />
-              Editar libro
-            </button>
-            <button className="btn-danger" onClick={() => onDeleteBook(book)} type="button">
-              <Trash2 size={17} />
-              Eliminar
-            </button>
-          </div>
+        <div className="flex flex-wrap items-end justify-between gap-2 px-5 pt-6 sm:px-7">
+          <div><h3 className="text-xl font-bold text-slate-950">Capítulos</h3><p className="mt-1 text-sm text-slate-600">Abre cada QR, revisa sus recursos y prepara la lectura en la app.</p></div>
+          <span className="rounded-full bg-teal-50 px-3 py-1 text-sm font-bold text-teal-800">{scenes.length} {scenes.length === 1 ? 'capítulo' : 'capítulos'}</span>
         </div>
-
         <div className="divide-y divide-slate-200">
           {scenes.length ? (
             scenes.map((chapter) => (
@@ -1310,7 +1297,7 @@ function ChapterRow({ chapter, onDelete, onEdit, previewOpen, onTogglePreview })
             </span>
             <h3 className="text-lg font-semibold">{chapter.title}</h3>
           </div>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{chapter.text}</p>
+          <p className="mt-2 line-clamp-3 max-w-3xl whitespace-pre-line text-sm leading-6 text-slate-600">{chapter.text}</p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
             <ResourcePill icon={Box} text={chapter.prefab_key || 'Sin prefab'} />
             <ResourcePill icon={FileAudio} text={chapter.audio_url ? fileName(chapter.audio_url) : 'Sin audio'} />
@@ -1366,8 +1353,8 @@ function BookFormView({ book, form, isSaving, onBack, onChange, onSubmit }) {
   const isEditing = Boolean(book);
 
   return (
-    <section className="mt-6 max-w-4xl">
-      <button className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500" onClick={onBack} type="button">
+    <section className="mt-6 max-w-5xl">
+      <button className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-teal-800 hover:text-teal-950" onClick={onBack} type="button">
         <ArrowLeft size={16} />
         {isEditing ? 'Volver al detalle' : 'Volver a libros'}
       </button>
@@ -1375,37 +1362,31 @@ function BookFormView({ book, form, isSaving, onBack, onChange, onSubmit }) {
       <FormPanel
         eyebrow="Libro"
         title={isEditing ? 'Editar libro' : 'Crear libro'}
-        text="Define la información principal que vera el docente antes de administrar capítulos."
+        text="Prepara la portada y la descripción antes de añadir los capítulos."
       >
-        <form className="grid gap-4 md:grid-cols-2" onSubmit={onSubmit}>
-          <Field label="Título">
-            <input
-              className="input"
-              placeholder="Ej. Biologia interactiva"
-              required maxLength={180} value={form.title}
-              onChange={(event) => onChange('title', event.target.value)}
-            />
-          </Field>
-          <Field label="Estado">
-            <label className="flex h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm">
-              <input
-                checked={form.is_published}
-                onChange={(event) => onChange('is_published', event.target.checked)}
-                type="checkbox"
-              />
-              Publicado
-            </label>
-          </Field>
-          <Field label="Descripción">
-            <textarea
-              className="input min-h-36 resize-y"
-              placeholder="Describe el contenido del libro"
-              value={form.description}
-              onChange={(event) => onChange('description', event.target.value)}
-            />
-          </Field>
-          <div className="space-y-4">
-            <FileUpload label="Portada" accept="image/*" value={form.cover} currentUrl={book?.cover_url} onChange={(file) => onChange('cover', file)} />
+        <form className="space-y-6" onSubmit={onSubmit}>
+          <div className="form-section">
+            <h3 className="text-lg font-bold text-slate-950">Información del libro</h3>
+            <p className="mt-1 text-sm text-slate-600">El título y la descripción ayudan a identificar la lectura en el panel y en la app.</p>
+            <div className="mt-5 grid gap-4">
+              <Field label="Título del libro">
+                <input className="input" placeholder="Ej. La aventura de la hormiga" required maxLength={180} value={form.title} onChange={(event) => onChange('title', event.target.value)} />
+              </Field>
+              <Field label="Descripción">
+                <textarea className="input min-h-32 resize-y" placeholder="¿De qué trata este cuento?" value={form.description} onChange={(event) => onChange('description', event.target.value)} />
+              </Field>
+            </div>
+          </div>
+          <div className="grid gap-5 md:grid-cols-2">
+            <div className="form-section"><h3 className="mb-4 text-lg font-bold text-slate-950">Portada</h3><FileUpload label="Imagen de portada" accept="image/*" value={form.cover} currentUrl={book?.cover_url} onChange={(file) => onChange('cover', file)} /></div>
+            <div className="form-section">
+              <h3 className="text-lg font-bold text-slate-950">Visibilidad</h3>
+              <p className="mt-1 text-sm text-slate-600">Puedes preparar el contenido antes de mostrarlo a los estudiantes.</p>
+              <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <input checked={form.is_published} onChange={(event) => onChange('is_published', event.target.checked)} type="checkbox" />
+                <span><span className="block font-semibold text-slate-900">Publicar libro</span><span className="mt-1 block text-sm leading-6 text-slate-600">{form.is_published ? 'Los estudiantes podrán ver sus capítulos.' : 'Se guardará como borrador hasta que decidas publicarlo.'}</span></span>
+              </label>
+            </div>
           </div>
           <FormActions isSaving={isSaving} onBack={onBack} submitText={isEditing ? 'Guardar cambios' : 'Crear libro'} />
         </form>
@@ -1429,8 +1410,8 @@ function ChapterFormView({ book, chapter, form, isSaving, onBack, onChange, onSu
   const previewUrl = form.remove_glb_model ? null : form.glb_model ? localPreviewUrl : chapter?.glb_model_url;
 
   return (
-    <section className="mt-6 max-w-4xl">
-      <button className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500" onClick={onBack} type="button">
+    <section className="mt-6 max-w-5xl">
+      <button className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-teal-800 hover:text-teal-950" onClick={onBack} type="button">
         <ArrowLeft size={16} />
         Volver al detalle
       </button>
@@ -1438,67 +1419,43 @@ function ChapterFormView({ book, chapter, form, isSaving, onBack, onChange, onSu
       <FormPanel
         eyebrow={book.title}
         title={isEditing ? 'Editar capítulo' : 'Crear capítulo'}
-        text="Añade la narración y sus recursos. El código QR se creará al guardar el capítulo."
+        text="Escribe la escena, añade sus recursos y configura cómo aparecerá sobre la página."
       >
-        <form className="grid gap-4 md:grid-cols-2" onSubmit={onSubmit}>
-          <Field label="Título">
-            <input
-              className="input"
-              placeholder="Ej. Sistema digestivo"
-              required maxLength={180} value={form.title}
-              onChange={(event) => onChange('title', event.target.value)}
-            />
-          </Field>
-          <Field label="Orden">
-            <input
-              className="input"
-              min="1"
-              step="1"
-              required
-              type="number"
-              value={form.order}
-              onChange={(event) => onChange('order', event.target.value)}
-            />
-          </Field>
-          <Field label="Texto">
-            <textarea
-              className="input min-h-36 resize-y"
-              placeholder="Contenido que vera o escuchara el estudiante"
-              required  value={form.text}
-              onChange={(event) => onChange('text', event.target.value)}
-            />
-          </Field>
-          <div className="space-y-4">
-            <Field label="Clave del modelo local · opcional">
-              <input
-                className="input"
-                placeholder="Ej. heart_model"
-                maxLength={120} value={form.prefab_key}
-                onChange={(event) => onChange('prefab_key', event.target.value)}
-              />
-            </Field>
-            <FileUpload label="Narración de audio" accept="audio/*" kind="audio" value={form.audio} currentUrl={chapter?.audio_url} onChange={(file) => onChange('audio', file)} />
-            <FileUpload label="Modelo 3D · GLB" accept=".glb,model/gltf-binary" kind="model" value={form.glb_model} currentUrl={form.remove_glb_model ? null : chapter?.glb_model_url} onChange={(file) => onChange('glb_model', file)} />
-            <p className="text-xs leading-5 text-slate-600">Sube un GLB con animaciones incluidas. El clip que elijas se reproducirá al tocar una zona libre de la pantalla en la app.</p>
-            {chapter?.glb_model_url && !form.glb_model && <label className="flex items-center gap-2 text-sm text-rose-700"><input type="checkbox" checked={Boolean(form.remove_glb_model)} onChange={(event) => onChange('remove_glb_model', event.target.checked)} />Retirar el modelo actual al guardar</label>}
+        <form className="space-y-6" onSubmit={onSubmit}>
+          <div className="form-section">
+            <div className="form-section-heading"><span className="form-section-number">1</span><div><h3>Historia</h3><p>El texto será visible en la lectura del estudiante.</p></div></div>
+            <div className="mt-5 grid gap-4 sm:grid-cols-[minmax(0,1fr)_130px]">
+              <Field label="Título del capítulo">
+                <input className="input" placeholder="Ej. La hormiga encuentra un camino" required maxLength={180} value={form.title} onChange={(event) => onChange('title', event.target.value)} />
+              </Field>
+              <Field label="Orden">
+                <input className="input" min="1" step="1" required type="number" value={form.order} onChange={(event) => onChange('order', event.target.value)} />
+              </Field>
+              <div className="sm:col-span-2">
+                <Field label="Narración">
+                  <textarea className="input min-h-48 resize-y" placeholder="Escribe lo que leerá o escuchará el estudiante" required value={form.text} onChange={(event) => onChange('text', event.target.value)} />
+                </Field>
+                <p className="mt-2 text-xs text-slate-500">Si no subes un audio, la app puede leer este texto con la voz de Android.</p>
+              </div>
+            </div>
           </div>
 
-          {previewUrl && (
-            <div className="md:col-span-2">
-              <h3 className="mb-2 font-semibold text-slate-900">Vista previa y animación al tocar la pantalla</h3>
-              <GlbPreviewLazy
-                src={previewUrl}
-                label={form.title || 'capítulo'}
-                tapAnimationName={form.tap_animation_name}
-                onTapAnimationChange={(name) => onChange('tap_animation_name', name)}
-              />
+          <div className="form-section">
+            <div className="form-section-heading"><span className="form-section-number">2</span><div><h3>Audio y modelo 3D</h3><p>Comprueba el archivo GLB y elige su animación antes de guardar.</p></div></div>
+            <div className="mt-5 grid gap-5 md:grid-cols-2">
+              <FileUpload label="Audio de narración · opcional" accept="audio/*" kind="audio" value={form.audio} currentUrl={chapter?.audio_url} onChange={(file) => onChange('audio', file)} />
+              <div>
+                <FileUpload label="Modelo 3D · GLB" accept=".glb,model/gltf-binary" kind="model" showModelPreview={false} value={form.glb_model} currentUrl={form.remove_glb_model ? null : chapter?.glb_model_url} onChange={(file) => onChange('glb_model', file)} />
+                {chapter?.glb_model_url && !form.glb_model && <label className="mt-3 flex items-center gap-2 text-sm text-rose-700"><input type="checkbox" checked={Boolean(form.remove_glb_model)} onChange={(event) => onChange('remove_glb_model', event.target.checked)} />Retirar el modelo actual al guardar</label>}
+              </div>
             </div>
-          )}
+            <div className="mt-5 max-w-md"><Field label="Clave de modelo incluido en Unity · opcional"><input className="input" placeholder="Ej. Hormiga" maxLength={120} value={form.prefab_key} onChange={(event) => onChange('prefab_key', event.target.value)} /></Field><p className="mt-2 text-xs leading-5 text-slate-500">Solo úsala si el modelo ya está integrado en la aplicación móvil.</p></div>
+            {previewUrl && <div className="mt-6"><h4 className="mb-2 font-semibold text-slate-900">Vista previa y animación al tocar</h4><GlbPreviewLazy src={previewUrl} label={form.title || 'capítulo'} tapAnimationName={form.tap_animation_name} onTapAnimationChange={(name) => onChange('tap_animation_name', name)} /></div>}
+          </div>
 
-          <div className="md:col-span-2 rounded-xl border border-teal-100 bg-teal-50/70 p-4">
-            <h3 className="font-semibold text-slate-900">Ubicación del modelo en la página</h3>
-            <p className="mt-1 text-sm leading-6 text-slate-600">Estas son medidas iniciales. En la app móvil, entra en «Docente», escanea el QR y ajusta el modelo sobre el libro real antes de publicar.</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="form-section">
+            <div className="form-section-heading"><span className="form-section-number">3</span><div><h3>Ubicación sobre la página</h3><p>Configura una medida inicial. El ajuste final se hace con el teléfono sobre el libro.</p></div></div>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {arPlacementFields.map(({ key, label, min, max, step }) => (
                 <Field key={key} label={label}>
                   <input
@@ -1509,11 +1466,14 @@ function ChapterFormView({ book, chapter, form, isSaving, onBack, onChange, onSu
                 </Field>
               ))}
             </div>
+            <p className="mt-4 rounded-xl bg-teal-50 p-3 text-sm leading-6 text-teal-900">Después de guardar, escanea el QR en la vista «Docente» de la app para comprobar el tamaño y la posición reales.</p>
           </div>
 
           {chapter && (
-            <div className="md:col-span-2">
-              <SceneQrCard chapter={chapter} />
+            <div className="form-section">
+              <h3 className="mb-3 text-lg font-bold text-slate-950">Código QR de este capítulo</h3>
+              <p className="mb-4 text-sm text-slate-600">Si cambiaste la medida del marcador, guarda primero y después descarga el PDF actualizado.</p>
+              <div className="max-w-sm"><SceneQrCard chapter={chapter} /></div>
             </div>
           )}
 
@@ -1636,10 +1596,10 @@ function StudentFormView({ books, form, isSaving, onBack, onChange, onSubmit, st
 
 function FormPanel({ children, eyebrow, text, title }) {
   return (
-    <div className="mt-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-sm font-semibold text-teal-700">{eyebrow}</p>
-      <h2 className="mt-1 text-3xl font-bold">{title}</h2>
-      <p className="mt-2 text-sm leading-6 text-slate-600">{text}</p>
+    <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-7">
+      <p className="text-xs font-bold uppercase tracking-[0.12em] text-teal-700">{eyebrow}</p>
+      <h2 className="mt-2 text-3xl font-bold tracking-tight">{title}</h2>
+      <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{text}</p>
       <div className="mt-6">{children}</div>
     </div>
   );
@@ -1647,13 +1607,13 @@ function FormPanel({ children, eyebrow, text, title }) {
 
 function FormActions({ isSaving, onBack, submitText }) {
   return (
-    <div className="flex gap-2 md:col-span-2 lg:col-span-2">
-      <button className="btn-primary" disabled={isSaving} type="submit">
+    <div className="form-actions flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end md:col-span-2">
+      <button className="btn-secondary justify-center" disabled={isSaving} onClick={onBack} type="button">
+        Cancelar
+      </button>
+      <button className="btn-primary justify-center" disabled={isSaving} type="submit">
         {isSaving ? <Loader2 className="animate-spin" size={17} /> : <Save size={17} />}
         {submitText}
-      </button>
-      <button className="btn-secondary" disabled={isSaving} onClick={onBack} type="button">
-        Cancelar
       </button>
     </div>
   );
@@ -1661,7 +1621,7 @@ function FormActions({ isSaving, onBack, submitText }) {
 
 function SearchBox({ onChange, placeholder, value }) {
   return (
-    <label className="flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-500 lg:w-80">
+    <label className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-500 focus-within:border-teal-600 focus-within:ring-4 focus-within:ring-teal-100 sm:w-72 lg:w-80">
       <Search size={17} />
       <input
         className="min-w-0 flex-1 bg-transparent text-slate-900 outline-none placeholder:text-slate-400"

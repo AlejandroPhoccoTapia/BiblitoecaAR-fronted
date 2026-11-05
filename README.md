@@ -2,17 +2,20 @@
 
 Aplicación React para administrar libros y capítulos vinculados a realidad aumentada: permite publicar contenido, subir texto/audio/modelos GLB, consultar los QR generados por Django y registrar estudiantes con fotografías y libros asignados.
 
-Documentación actualizada el **25 de septiembre de 2026**. Es un MVP; las comprobaciones locales están descritas en la sección 7. El despliegue y la integración con Django/Android requieren validación independiente.
+Documentación actualizada el **5 de noviembre de 2026**. Es un MVP; las comprobaciones locales están descritas en la sección 7. El despliegue y la integración con Django/Android requieren validación independiente.
 
 ## Mejoras de esta revisión
 
 - Panel adaptable con nueva cabecera, indicadores, navegación y tarjetas.
+- Cabecera compacta: el resumen y las estadísticas aparecen en la biblioteca sin ocupar espacio en los formularios o el directorio de estudiantes.
 - Búsqueda sin distinción de tildes, filtros de estado y ordenación de libros.
+- Filtros visibles para libros y estudiantes, con conteos y una barra de búsqueda más clara.
 - Mensajes diferenciados para biblioteca vacía y búsqueda sin resultados.
 - Formularios con validación, vista previa de fotos/portadas y reproducción de audio.
 - Selección múltiple de libros corregida, incluidos campos vacíos y retirada de todas las asignaciones.
 - Retirada explícita del GLB existente desde el editor de capítulo.
 - Vista previa interactiva del GLB nuevo antes de guardar y del modelo ya guardado desde la ficha del capítulo, con controles para clips de animación incluidos.
+- Detalle del libro con acciones y capítulos más legibles; formularios de libro y capítulo divididos por pasos, con guardado accesible y una sola vista previa 3D.
 - Avisos de éxito, errores por campo, timeout de red y carga parcial del catálogo.
 - Protección frente a envíos duplicados, confirmación al eliminar capítulos y aviso al salir con cambios sin guardar.
 - Siete pruebas de regresión y servidor de datos ficticios para revisión visual.

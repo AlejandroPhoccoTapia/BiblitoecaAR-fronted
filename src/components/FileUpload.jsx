@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Upload, X } from 'lucide-react';
 import GlbPreviewLazy from './GlbPreviewLazy';
 
-export default function FileUpload({ label, accept, value, onChange, currentUrl, kind = 'image' }) {
+export default function FileUpload({ label, accept, value, onChange, currentUrl, kind = 'image', showModelPreview = true }) {
   const id = useId();
   const inputRef = useRef(null);
   const [preview, setPreview] = useState('');
@@ -39,7 +39,7 @@ export default function FileUpload({ label, accept, value, onChange, currentUrl,
         <input ref={inputRef} id={id} type="file" accept={accept} onChange={select} aria-describedby={error ? `${id}-error` : undefined} aria-invalid={Boolean(error)} className="min-w-0 w-full text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-white file:px-2 file:py-2 file:font-semibold file:text-teal-800" />
       </div>
       {value && <div className="mt-2 flex items-center justify-between gap-2 text-xs text-teal-800"><span className="break-all">{value.name} · {(value.size / 1024 / 1024).toFixed(2)} MB</span><button type="button" onClick={() => onChange(null)} aria-label={`Descartar ${value.name}`} className="shrink-0 rounded-lg p-2"><X size={16} /></button></div>}
-      {url && kind === 'model' && (
+      {url && kind === 'model' && showModelPreview && (
         <div className="mt-2 space-y-2">
           <GlbPreviewLazy src={url} label={value?.name || 'modelo actual'} />
           <p className="text-xs leading-5 text-slate-500">Vista previa para comprobar el archivo. La ubicación y el tamaño sobre el libro se ajustan en la app móvil.</p>
