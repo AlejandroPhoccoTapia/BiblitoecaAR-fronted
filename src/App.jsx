@@ -686,6 +686,7 @@ export default function App() {
       <div className="mx-auto min-h-screen max-w-7xl px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
         <AppHeader
           activeSection={section}
+          showOverview={view === 'books'}
           booksCount={books.length}
           onRefresh={() => { if (canLeave()) loadTeacherContent(); }}
           busy={isBusy || isLoading}
@@ -712,6 +713,8 @@ export default function App() {
         {view === 'books' && (
           <BooksView
             books={filteredBooks}
+            totalBooks={books.length}
+            publishedBooks={publishedBooks}
             bookStatus={bookStatus} setBookStatus={setBookStatus} sortOrder={sortOrder} setSortOrder={setSortOrder}
             isLoading={isLoading}
             onCreateBook={openCreateBook}
@@ -772,6 +775,7 @@ export default function App() {
         {view === 'students' && (
           <StudentsView
             books={books}
+            totalStudents={students.length}
             isLoading={isLoading}
             onCreateStudent={openCreateStudent}
             onDeleteStudent={handleDeleteStudent}
@@ -935,6 +939,8 @@ function LoginView({
 
 function BooksView({
   books,
+  totalBooks,
+  publishedBooks,
   isLoading,
   onCreateBook,
   onDeleteBook,
@@ -945,26 +951,33 @@ function BooksView({
   setSearchTerm,
   bookStatus, setBookStatus, sortOrder, setSortOrder,
 }) {
+  const statuses = [
+    { value: 'all', label: 'Todos', count: totalBooks },
+    { value: 'published', label: 'Publicados', count: publishedBooks },
+    { value: 'draft', label: 'Borradores', count: totalBooks - publishedBooks },
+  ];
+
   return (
-    <section className="mt-6">
-      <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-end lg:justify-between">
+    <section className="mt-7">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-sm font-semibold text-teal-700">Biblioteca del docente</p>
-          <h2 className="mt-1 text-3xl font-bold">Mis libros</h2>
+          <p className="text-sm font-semibold text-teal-700">Contenido de la biblioteca</p>
+          <h2 className="mt-1 text-3xl font-bold tracking-tight">Libros y cuentos</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            Revisa tus libros, entra al detalle para administrar capítulos o crea uno nuevo.
+            Abre un libro para preparar capítulos, recursos y códigos QR.
           </p>
         </div>
-<div className="flex flex-wrap gap-2"><SearchBox placeholder="Buscar libro" value={searchTerm} onChange={setSearchTerm} /><button className="btn-primary" onClick={onCreateBook} type="button"><Plus size={17} />Nuevo libro</button></div>
+        <button className="btn-primary justify-center" onClick={onCreateBook} type="button"><Plus size={17} />Nuevo libro</button>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <label className="sr-only" htmlFor="book-status">Estado de los libros</label>
-        <select id="book-status" className="input w-auto" value={bookStatus} onChange={(event) => setBookStatus(event.target.value)}><option value="all">Todos los estados</option><option value="published">Publicados</option><option value="draft">Borradores</option></select>
-        <label className="sr-only" htmlFor="book-sort">Ordenar libros</label>
-        <select id="book-sort" className="input w-auto" value={sortOrder} onChange={(event) => setSortOrder(event.target.value)}><option value="title">Título: A–Z</option><option value="recent">Actualizados recientemente</option></select>
-        <span className="text-sm text-slate-500" role="status">{books.length} {books.length === 1 ? 'libro' : 'libros'}</span>
+      <div className="catalog-toolbar">
+        <SearchBox placeholder="Buscar por título o descripción" value={searchTerm} onChange={setSearchTerm} />
+        <div className="filter-tabs" role="group" aria-label="Filtrar libros por estado">
+          {statuses.map(({ value, label, count }) => <button key={value} aria-pressed={bookStatus === value} onClick={() => setBookStatus(value)} type="button">{label}<span>{count}</span></button>)}
+        </div>
+        <label className="flex items-center gap-2 text-sm font-medium text-slate-600" htmlFor="book-sort"><span className="hidden sm:inline">Ordenar</span><select id="book-sort" className="input min-w-48" value={sortOrder} onChange={(event) => setSortOrder(event.target.value)}><option value="title">Título: A–Z</option><option value="recent">Más recientes</option></select></label>
       </div>
+      <p className="mt-3 text-sm text-slate-600" role="status">Mostrando {books.length} de {totalBooks} {totalBooks === 1 ? 'libro' : 'libros'}</p>
       {isLoading ? (
         <div className="mt-6 rounded-lg border border-slate-200 bg-white">
           <LoadingBlock text="Cargando libros" />
@@ -1028,6 +1041,7 @@ function AccessCodeDialog({ issuedAccess, onClose }) {
 
 function StudentsView({
   books,
+  totalStudents,
   isLoading,
   onCreateStudent,
   onDeleteStudent,
@@ -1038,26 +1052,27 @@ function StudentsView({
   students,
   studentStatus, setStudentStatus,
 }) {
+  const activeCount = students.filter((student) => student.is_active).length;
   return (
-    <section className="mt-6">
-      <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-end lg:justify-between">
+    <section className="mt-7">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-sm font-semibold text-teal-700">Acceso infantil</p>
-          <h2 className="mt-1 text-3xl font-bold">Cuentas de estudiantes</h2>
+          <h2 className="mt-1 text-3xl font-bold tracking-tight">Estudiantes</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
             Organiza perfiles, fotografías y lecturas asignadas por aula.
           </p>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <SearchBox placeholder="Buscar estudiante" value={searchTerm} onChange={setSearchTerm} />
-          <button className="btn-primary justify-center" onClick={onCreateStudent} type="button">
-            <Plus size={17} />
-            Nuevo estudiante
-          </button>
-        </div>
+        <button className="btn-primary justify-center" onClick={onCreateStudent} type="button"><Plus size={17} />Nuevo estudiante</button>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-3"><label className="sr-only" htmlFor="student-status">Estado de estudiantes</label><select id="student-status" className="input w-auto" value={studentStatus} onChange={(event) => setStudentStatus(event.target.value)}><option value="all">Todos los estudiantes</option><option value="active">Activos</option><option value="inactive">Inactivos</option></select><span role="status" className="text-sm text-slate-500">{students.length} estudiantes</span></div>
+      <div className="catalog-toolbar">
+        <SearchBox placeholder="Buscar por nombre o aula" value={searchTerm} onChange={setSearchTerm} />
+        <div className="filter-tabs" role="group" aria-label="Filtrar estudiantes por estado">
+          {[['all', 'Todos'], ['active', 'Activos'], ['inactive', 'Inactivos']].map(([value, label]) => <button key={value} aria-pressed={studentStatus === value} onClick={() => setStudentStatus(value)} type="button">{label}</button>)}
+        </div>
+      </div>
+      <p className="mt-3 text-sm text-slate-600" role="status">Mostrando {students.length} de {totalStudents} estudiantes · {activeCount} activos en esta vista</p>
       {isLoading ? (
         <div className="mt-6 rounded-lg border border-slate-200 bg-white">
           <LoadingBlock text="Cargando estudiantes" />
