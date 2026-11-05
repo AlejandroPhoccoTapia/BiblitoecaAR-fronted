@@ -24,7 +24,7 @@ http.createServer(async (req, res) => {
     const student = students.find((item) => item.id === Number(resetMatch[1]));
     if (!student) return reply({ detail: 'Estudiante no encontrado.' }, 404);
     student.has_access_code = true;
-    return reply({ access_code: 'DEMOACCESS' });
+    return reply({ access_code: 'A3B7K2' });
   }
   const match = req.url?.match(/^\/api\/teacher\/(books|scenes|students)\/(\d+)?\/?$/);
   if (!match) return reply({ detail: 'Ruta de demostración no disponible.' }, 404);
@@ -41,7 +41,7 @@ http.createServer(async (req, res) => {
   Object.assign(row, data, { updated_at: new Date().toISOString() });
   if (match[1] === 'students' && !id) {
     row.has_access_code = true;
-    return reply({ ...row, access_code: 'DEMOACCESS' });
+    return reply({ ...row, access_code: 'A3B7K2' });
   }
   reply(row);
 }).listen(8000, '127.0.0.1', () => globalThis.console.log('API DEMO local :8000. Datos ficticios en memoria; no valida autenticación real ni subidas.'));
